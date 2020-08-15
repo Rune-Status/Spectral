@@ -1,0 +1,5 @@
+rootProject.name = 'spectral'
+
+include ":asm"
+include ":deobfuscator"
+
