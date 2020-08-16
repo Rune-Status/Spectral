@@ -1,10 +1,9 @@
 package org.spectral.deobfuscator.transformer.rename
 
-import org.objectweb.asm.Type
 import org.objectweb.asm.commons.ClassRemapper
 import org.objectweb.asm.commons.SimpleRemapper
 import org.objectweb.asm.tree.ClassNode
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.spectral.deobfuscator.util.isObfuscatedName
 import org.tinylog.kotlin.Logger
@@ -23,7 +22,7 @@ class NameGenerator : Transformer {
 
     private val nameMappings = hashMapOf<String, String>()
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         /*
          * Generate namings.
          */
@@ -48,7 +47,7 @@ class NameGenerator : Transformer {
      *
      * @param group ClassGroup
      */
-    private fun generateNameMappings(group: ClassGroup) {
+    private fun generateNameMappings(group: ClassGroupExt) {
         /*
          * Generate class names for only obfuscated class names.
          */
@@ -148,7 +147,7 @@ class NameGenerator : Transformer {
      *
      * @param group ClassGroup
      */
-    private fun applyNameMappings(group: ClassGroup) {
+    private fun applyNameMappings(group: ClassGroupExt) {
         val remapper = SimpleRemapper(nameMappings)
 
         group.forEachIndexed { index, c ->

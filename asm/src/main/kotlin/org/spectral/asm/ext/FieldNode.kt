@@ -1,4 +1,4 @@
-package org.spectral.asm
+package org.spectral.asm.ext
 
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
@@ -22,6 +22,6 @@ internal fun rebuildFields() {
 
 val FieldNode.owner: ClassNode get() = fieldOwners[this.hash] ?: throw NullPointerException("Unable to find field owner for field: '${this.name}'.")
 
-val FieldNode.group: ClassGroup get() = this.owner.group
+val FieldNode.group: ClassGroupExt get() = this.owner.group
 
 val FieldNode.isStatic: Boolean get() = Modifier.isStatic(this.access)

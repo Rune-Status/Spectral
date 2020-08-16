@@ -1,4 +1,4 @@
-package org.spectral.asm
+package org.spectral.asm.ext
 
 import com.google.common.collect.HashMultimap
 import org.objectweb.asm.Opcodes.*
@@ -7,13 +7,13 @@ import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
 import java.util.ArrayDeque
 
-private val classGroups = hashMapOf<Int, ClassGroup>()
+private val classGroups = hashMapOf<Int, ClassGroupExt>()
 private val classChildren = HashMultimap.create<Int, ClassNode>()
 private val classImplementers = HashMultimap.create<Int, ClassNode>()
 
 internal val ClassNode.hash: Int get() = System.identityHashCode(this)
 
-internal fun ClassNode.setGroup(group: ClassGroup) {
+internal fun ClassNode.setGroup(group: ClassGroupExt) {
     classGroups[this.hash] = group
 }
 
@@ -49,7 +49,7 @@ internal fun ClassNode.addImplementer(implementer: ClassNode) {
     classImplementers[this.hash].add(implementer)
 }
 
-val ClassNode.group: ClassGroup get() = classGroups[this.hash] ?: throw NullPointerException("Unable to find class group for class: '${this.name}'.")
+val ClassNode.group: ClassGroupExt get() = classGroups[this.hash] ?: throw NullPointerException("Unable to find class group for class: '${this.name}'.")
 
 val ClassNode.parent: ClassNode? get() = this.group[this.superName]
 

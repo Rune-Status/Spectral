@@ -2,7 +2,7 @@ package org.spectral.deobfuscator.transformer
 
 import org.objectweb.asm.tree.analysis.Analyzer
 import org.objectweb.asm.tree.analysis.BasicInterpreter
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 
@@ -12,7 +12,7 @@ import org.tinylog.kotlin.Logger
  */
 class DeadCodeRemover : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         var counter = 0
 
         group.forEach { c ->

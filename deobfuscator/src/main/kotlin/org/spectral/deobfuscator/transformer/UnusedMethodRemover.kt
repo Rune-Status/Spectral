@@ -6,7 +6,7 @@ import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.util.*
@@ -16,7 +16,7 @@ import java.util.*
 */
 class UnusedMethodRemover : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         val unusedMethods = group.unusedMethods
         var counter = 0
 
@@ -35,9 +35,9 @@ class UnusedMethodRemover : Transformer {
     }
 
     /**
-     * Gets a set of the unused method nodes in a [ClassGroup] object.
+     * Gets a set of the unused method nodes in a [ClassGroupExt] object.
      */
-    private val ClassGroup.unusedMethods: TreeSet<String>
+    private val ClassGroupExt.unusedMethods: TreeSet<String>
         get() {
         val namedGroup = this.associateBy { it.name }
 

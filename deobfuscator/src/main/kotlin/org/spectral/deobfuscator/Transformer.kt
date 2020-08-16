@@ -1,12 +1,12 @@
 package org.spectral.deobfuscator
 
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 
 /**
  * Represents a bytecode transformer step.
  */
 interface Transformer {
 
-    fun transform(group: ClassGroup)
+    fun transform(group: ClassGroupExt)
 
 }

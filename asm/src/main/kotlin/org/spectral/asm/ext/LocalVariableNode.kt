@@ -1,4 +1,4 @@
-package org.spectral.asm
+package org.spectral.asm.ext
 
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.LocalVariableNode
@@ -20,4 +20,4 @@ val LocalVariableNode.owner: MethodNode get() = localVariableOwners[this.hash] ?
 
 val LocalVariableNode.origin: ClassNode get() = this.owner.owner
 
-val LocalVariableNode.group: ClassGroup get() = this.owner.group
+val LocalVariableNode.group: ClassGroupExt get() = this.owner.group

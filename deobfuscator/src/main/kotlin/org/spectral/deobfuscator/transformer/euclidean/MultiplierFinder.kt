@@ -7,7 +7,7 @@ import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.FieldInsnNode
 import org.objectweb.asm.tree.LdcInsnNode
 import org.objectweb.asm.tree.analysis.*
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.tinylog.kotlin.Logger
 import kotlin.math.absoluteValue
 
@@ -23,7 +23,7 @@ class MultiplierFinder {
      * @param group ClassGroup
      * @return Map<String, Long>
      */
-    fun getMultipliers(group: ClassGroup): Map<String, Long> {
+    fun getMultipliers(group: ClassGroupExt): Map<String, Long> {
         Logger.info("Calculating multipliers.")
 
         val multipliers = Multipliers()

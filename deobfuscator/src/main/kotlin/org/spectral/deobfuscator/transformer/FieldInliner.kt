@@ -3,7 +3,7 @@ package org.spectral.deobfuscator.transformer
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldInsnNode
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.lang.reflect.Modifier
@@ -14,7 +14,7 @@ import java.lang.reflect.Modifier
  */
 class FieldInliner : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         var counter = 0
 
         val resolver = FieldResolver(group)
@@ -48,7 +48,7 @@ class FieldInliner : Transformer {
      * @property group ClassGroup
      * @constructor
      */
-    private class FieldResolver(private val group: ClassGroup) {
+    private class FieldResolver(private val group: ClassGroupExt) {
 
         /**
          * A map of [group] to the class name as a key.

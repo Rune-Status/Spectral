@@ -1,4 +1,4 @@
-package org.spectral.asm
+package org.spectral.asm.ext
 
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.MethodNode
@@ -22,6 +22,6 @@ internal fun rebuildMethods() {
 
 val MethodNode.owner: ClassNode get() = methodOwners[this.hash] ?: throw NullPointerException("Unable to find method owner for method: '${this.name}'.")
 
-val MethodNode.group: ClassGroup get() = this.owner.group
+val MethodNode.group: ClassGroupExt get() = this.owner.group
 
 val MethodNode.isStatic: Boolean get() = Modifier.isStatic(this.access)

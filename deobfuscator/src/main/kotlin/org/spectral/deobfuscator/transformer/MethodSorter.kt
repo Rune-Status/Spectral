@@ -2,7 +2,7 @@ package org.spectral.deobfuscator.transformer
 
 import org.objectweb.asm.tree.LineNumberNode
 import org.objectweb.asm.tree.MethodNode
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.lang.reflect.Modifier
@@ -12,7 +12,7 @@ import java.lang.reflect.Modifier
  */
 class MethodSorter : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         group.forEach { c ->
             val methodsByLineCount = c.methods.associateWith { (it.firstLineIndex) ?: Integer.MAX_VALUE }
 

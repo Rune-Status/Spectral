@@ -3,14 +3,14 @@ package org.spectral.deobfuscator.transformer
 import com.google.common.collect.TreeMultimap
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import java.lang.reflect.Modifier
 
 
 class DuplicateMethodRemover : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         val map = TreeMultimap.create<String, String>()
         group.forEach { c ->
             c.methods.filter { Modifier.isStatic(it.access) && it.name != "<clinit>" }.forEach { m ->

@@ -1,7 +1,7 @@
 package org.spectral.deobfuscator.transformer
 
 import org.objectweb.asm.Type
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.lang.RuntimeException
@@ -12,7 +12,7 @@ import java.lang.RuntimeException
  */
 class TryCatchRemover : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         var counter = 0
 
         group.forEach { c ->

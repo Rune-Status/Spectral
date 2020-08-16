@@ -1,7 +1,7 @@
 package org.spectral.deobfuscator.transformer
 
 import org.objectweb.asm.tree.FieldInsnNode
-import org.spectral.asm.ClassGroup
+import org.spectral.asm.ext.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.lang.reflect.Modifier
@@ -11,7 +11,7 @@ import java.lang.reflect.Modifier
  */
 class UnusedFieldRemover : Transformer {
 
-    override fun transform(group: ClassGroup) {
+    override fun transform(group: ClassGroupExt) {
         var counter = 0
 
         val usedFields = group.flatMap { it.methods }
