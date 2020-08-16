@@ -7,4 +7,6 @@ ext {
     clikt = "2.8.0"
     progressbar = "0.8.1"
     guava = "29.0-jre"
+    autoservice = "1.0-rc7"
+    kotlinpoet = "1.6.0"
 }

@@ -15,7 +15,7 @@ class ClassGroup() : MutableList<Class> by mutableListOf() {
      * @param nodes The nodes to add
      * @constructor
      */
-    private constructor(nodes: Collection<ClassNode>) {
+    private constructor(nodes: Collection<ClassNode>) : this() {
 
     }
 }

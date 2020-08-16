@@ -1,4 +1,16 @@
+apply plugin: 'kotlin-kapt'
+
+sourceSets {
+    main {
+        java {
+            srcDir "${buildDir.absolutePath}/generated/source/kaptKotlin/"
+        }
+    }
+}
+
 dependencies {
+    implementation project(":asm:asm-processor")
+    kapt project(":asm:asm-processor")
     implementation "org.ow2.asm:asm:$asm"
     implementation "org.ow2.asm:asm-commons:$asm"
     implementation "org.ow2.asm:asm-util:$asm"
