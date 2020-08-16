@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
 import me.tongfei.progressbar.ProgressBar
 import me.tongfei.progressbar.ProgressBarBuilder
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.transformer.*
 import org.spectral.deobfuscator.transformer.rename.NameGenerator
 import org.spectral.deobfuscator.transformer.controlflow.ControlFlowFixer

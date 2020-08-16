@@ -4,7 +4,7 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
 import org.objectweb.asm.tree.analysis.*
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 

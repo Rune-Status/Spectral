@@ -1,4 +1,4 @@
-package org.spectral.asm.ext
+package org.spectral.deobfuscator.asm
 
 import com.google.common.collect.HashMultimap
 import org.objectweb.asm.Opcodes.*

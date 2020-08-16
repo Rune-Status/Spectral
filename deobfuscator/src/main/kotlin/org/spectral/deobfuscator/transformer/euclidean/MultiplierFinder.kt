@@ -7,7 +7,7 @@ import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.FieldInsnNode
 import org.objectweb.asm.tree.LdcInsnNode
 import org.objectweb.asm.tree.analysis.*
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.tinylog.kotlin.Logger
 import kotlin.math.absoluteValue
 

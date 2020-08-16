@@ -2,7 +2,7 @@ package org.spectral.deobfuscator.transformer.controlflow
 
 import org.objectweb.asm.tree.InsnList
 import org.objectweb.asm.tree.LabelNode
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.util.*

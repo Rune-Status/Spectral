@@ -3,7 +3,7 @@ package org.spectral.deobfuscator.transformer
 import com.google.common.collect.TreeMultimap
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import java.lang.reflect.Modifier
 

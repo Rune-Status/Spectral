@@ -3,7 +3,7 @@ package org.spectral.deobfuscator.transformer.rename
 import org.objectweb.asm.commons.ClassRemapper
 import org.objectweb.asm.commons.SimpleRemapper
 import org.objectweb.asm.tree.ClassNode
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
 import org.spectral.deobfuscator.util.isObfuscatedName
 import org.tinylog.kotlin.Logger

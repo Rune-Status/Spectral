@@ -1,6 +1,6 @@
 package org.spectral.deobfuscator
 
-import org.spectral.asm.ext.ClassGroupExt
+import org.spectral.deobfuscator.asm.ClassGroupExt
 
 /**
  * Represents a bytecode transformer step.
