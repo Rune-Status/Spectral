@@ -21,5 +21,16 @@ open class Class(val group: ClassGroup, internal val node: ClassNode) : ClassVis
     @Shadow
     private val name: String? = null
 
+    @Shadow(name = "superName")
+    private val parentName: String? = null
 
+    /**
+     * Makes the given [classVisitor] visit the [ClassNode]
+     * object that is embedded in this object.
+     *
+     * @param classVisitor ClassVisitor
+     */
+    fun accept(classVisitor: ClassVisitor) {
+        this.node.accept(classVisitor)
+    }
 }

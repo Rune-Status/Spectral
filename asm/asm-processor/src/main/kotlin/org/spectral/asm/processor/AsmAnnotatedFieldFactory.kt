@@ -7,7 +7,7 @@ import javax.lang.model.element.Element
 class AsmAnnotatedFieldFactory(private val element: Element) {
 
     @Suppress("DEPRECATION")
-    fun generateCode(outputDir: File) {
+    fun generateCode(outputDir: File): PropertySpec {
 
         val packageName = "org.spectral.asm"
         val className = element.enclosingElement.simpleName.toString()
@@ -16,31 +16,25 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
 
         val cls = ClassName(packageName, className)
 
-        val propertyName = if(annotation.newName != "none") {
-            annotation.newName
+        val delegateName = if(annotation.name != "none") {
+            annotation.name
         } else {
             fieldName
         }
 
-        val property = PropertySpec.builder(propertyName, element.asType().asTypeName().correctStringType())
+        val property = PropertySpec.builder(fieldName, element.asType().asTypeName().correctStringType())
             .receiver(cls)
-            .mutable(true)
+            .mutable(!annotation.immutable)
             .getter(FunSpec.getterBuilder()
-                .addStatement("return node.${fieldName}")
+                .addStatement("return node.${delegateName}")
                 .build())
             .setter(FunSpec.setterBuilder()
                 .addParameter("value", element.asType().asTypeName().correctStringType())
-                .addStatement("node.${fieldName} = value")
+                .addStatement("node.${delegateName} = value")
                 .build())
             .build()
 
-        /*
-         * Build the file.
-         */
-        FileSpec.builder(packageName, "${className}$${fieldName}Ext")
-            .addProperty(property)
-            .build()
-            .writeTo(outputDir)
+        return property
     }
 
     private fun TypeName.correctStringType() =

@@ -2,6 +2,8 @@ package org.spectral.asm.processor
 
 import com.google.auto.common.BasicAnnotationProcessor
 import com.google.common.collect.SetMultimap
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.PropertySpec
 import java.io.File
 import java.io.IOException
 import javax.annotation.processing.Messager
@@ -17,6 +19,7 @@ class AsmAnnotationProcessingStep(
 ) : BasicAnnotationProcessor.ProcessingStep {
 
     private val factoryClasses = LinkedHashMap<String, AsmAnnotatedFieldFactory>()
+    private val generatedPropertySpecs = mutableSetOf<PropertySpec>()
 
     override fun annotations(): Set<Class<out Annotation>> = setOf(Shadow::class.java)
 
@@ -32,9 +35,17 @@ class AsmAnnotationProcessingStep(
             }
 
             factoryClasses.forEach { (_, u) ->
-                u.generateCode(outputDir)
+                generatedPropertySpecs.add(u.generateCode(outputDir))
             }
             factoryClasses.clear()
+
+            /*
+             * Build the file.
+             */
+            val fileSpec = FileSpec.builder("org.spectral.asm", "AsmGeneratedExt")
+            generatedPropertySpecs.forEach { fileSpec.addProperty(it) }
+            fileSpec.build().writeTo(outputDir)
+
         } catch (e : ProcessingException) {
             error(e.element, e.message ?: "")
         } catch( e : IOException) {
