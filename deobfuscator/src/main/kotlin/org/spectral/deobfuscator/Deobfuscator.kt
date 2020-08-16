@@ -6,11 +6,10 @@ import com.github.ajalt.clikt.parameters.types.file
 import me.tongfei.progressbar.ProgressBar
 import me.tongfei.progressbar.ProgressBarBuilder
 import org.spectral.asm.ClassGroup
-import org.spectral.deobfuscator.transformer.FieldInliner
-import org.spectral.deobfuscator.transformer.MethodInliner
+import org.spectral.deobfuscator.transformer.*
 import org.spectral.deobfuscator.transformer.rename.NameGenerator
-import org.spectral.deobfuscator.transformer.TryCatchRemover
 import org.spectral.deobfuscator.transformer.controlflow.ControlFlowFixer
+import org.spectral.deobfuscator.transformer.euclidean.MultiplierRemover
 import org.tinylog.kotlin.Logger
 import java.io.File
 
@@ -32,11 +31,24 @@ class Deobfuscator {
      * Register the transformer instances.
      */
     init {
-        transformers.add(TryCatchRemover())
-        transformers.add(FieldInliner())
-        transformers.add(NameGenerator())
-        transformers.add(ControlFlowFixer())
-        transformers.add(MethodInliner())
+        register(TryCatchRemover())
+        register(OpaquePredicateCheckRemover())
+        register(GotoRemover())
+        register(ControlFlowFixer())
+        register(DeadCodeRemover())
+        register(MultiplierRemover())
+        register(FieldInliner())
+        register(OpaquePredicateArgRemover())
+        register(UnusedMethodRemover())
+        register(UnusedFieldRemover())
+        register(ErrorConstructorRemover())
+        register(FieldSorter())
+        register(MethodSorter())
+        register(NameGenerator())
+    }
+
+    private fun register(transformer: Transformer) {
+        transformers.add(transformer)
     }
 
     fun loadInputJar(inputFile: File) {
