@@ -31,20 +31,20 @@ class Deobfuscator {
      * Register the transformer instances.
      */
     init {
-        register(TryCatchRemover())
-        register(OpaquePredicateCheckRemover())
-        register(GotoRemover())
-        register(ControlFlowFixer())
-        register(DeadCodeRemover())
-        register(MultiplierRemover())
-        register(FieldInliner())
-        register(OpaquePredicateArgRemover())
         register(UnusedMethodRemover())
         register(UnusedFieldRemover())
+        register(MultiplierRemover())
+        register(ControlFlowFixer())
+        register(FieldInliner())
+        register(TryCatchRemover())
         register(ErrorConstructorRemover())
+        register(GotoRemover())
+        register(DeadCodeRemover())
+        register(OpaquePredicateCheckRemover())
         register(FieldSorter())
         register(MethodSorter())
         register(NameGenerator())
+        register(OpaquePredicateArgRemover())
     }
 
     private fun register(transformer: Transformer) {

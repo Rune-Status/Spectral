@@ -1,6 +1,7 @@
 package org.spectral.asm.processor
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.io.File
 import javax.lang.model.element.Element
 
@@ -12,7 +13,7 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
         val packageName = "org.spectral.asm"
         val className = element.enclosingElement.simpleName.toString()
         val fieldName = element.simpleName.toString()
-        val annotation = element.getAnnotation(Shadow::class.java)
+        val annotation = element.getAnnotation(Import::class.java)
 
         val cls = ClassName(packageName, className)
 
@@ -22,14 +23,14 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
             fieldName
         }
 
-        val property = PropertySpec.builder(fieldName, element.asType().asTypeName().correctStringType())
+        val property = PropertySpec.builder(fieldName, element.asType().asTypeName().correctType())
             .receiver(cls)
             .mutable(!annotation.immutable)
             .getter(FunSpec.getterBuilder()
-                .addStatement("return node.${delegateName}")
+                .addStatement("return node.${delegateName}!!")
                 .build())
             .setter(FunSpec.setterBuilder()
-                .addParameter("value", element.asType().asTypeName().correctStringType())
+                .addParameter("value", element.asType().asTypeName().correctType())
                 .addStatement("node.${delegateName} = value")
                 .build())
             .build()
@@ -37,6 +38,10 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
         return property
     }
 
-    private fun TypeName.correctStringType() =
-        if(this.toString() == "java.lang.String") ClassName("kotlin", "String") else this
+    private fun TypeName.correctType() = when {
+        this.toString().startsWith("java.lang.String") -> String::class.asTypeName()
+        this.toString().startsWith("java.util.List") -> ClassName("kotlin.collections", "List")
+            .parameterizedBy(Class.forName(this.toString().substring(this.toString().indexOf("<") + 1, this.toString().indexOf(">"))).kotlin.asTypeName())
+        else -> this
+    }
 }

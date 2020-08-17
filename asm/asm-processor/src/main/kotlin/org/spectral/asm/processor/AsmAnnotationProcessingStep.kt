@@ -21,17 +21,18 @@ class AsmAnnotationProcessingStep(
     private val factoryClasses = LinkedHashMap<String, AsmAnnotatedFieldFactory>()
     private val generatedPropertySpecs = mutableSetOf<PropertySpec>()
 
-    override fun annotations(): Set<Class<out Annotation>> = setOf(Shadow::class.java)
+    override fun annotations(): Set<Class<out Annotation>> = setOf(Import::class.java)
 
     override fun process(elementsByAnnotation: SetMultimap<Class<out Annotation>, Element>): Set<Element> {
         try {
-            elementsByAnnotation[Shadow::class.java].forEach { annotatedElement ->
+            elementsByAnnotation[Import::class.java].forEach { annotatedElement ->
+                messager.printMessage(Diagnostic.Kind.NOTE, "Detected annotated field: '${annotatedElement.enclosingElement.simpleName}.${annotatedElement.simpleName}'\n")
                 if(annotatedElement.kind !== ElementKind.FIELD) {
                     throw ProcessingException(annotatedElement, "Only fields can be annotated with @Shadow")
                 }
 
                 val factory = AsmAnnotatedFieldFactory(annotatedElement)
-                factoryClasses[annotatedElement.simpleName.toString()] = factory
+                factoryClasses[annotatedElement.enclosingElement.simpleName.toString() + "." + annotatedElement.simpleName.toString()] = factory
             }
 
             factoryClasses.forEach { (_, u) ->
@@ -43,7 +44,10 @@ class AsmAnnotationProcessingStep(
              * Build the file.
              */
             val fileSpec = FileSpec.builder("org.spectral.asm", "AsmGeneratedExt")
-            generatedPropertySpecs.forEach { fileSpec.addProperty(it) }
+            generatedPropertySpecs.forEach {
+                fileSpec.addProperty(it)
+                messager.printMessage(Diagnostic.Kind.NOTE, "Adding property for '${it.receiverType.toString()}.${it.name}\n")
+            }
             fileSpec.build().writeTo(outputDir)
 
         } catch (e : ProcessingException) {

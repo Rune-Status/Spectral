@@ -1,18 +1,25 @@
 apply plugin: 'kotlin-kapt'
+apply plugin: 'idea'
 
-sourceSets {
-    main {
-        java {
-            srcDir "${buildDir.absolutePath}/generated/source/kaptKotlin/"
-        }
+idea {
+    module {
+        sourceDirs += file('build/generated/source/kapt/main')
+        sourceDirs += file('build/generated/source/kaptKotlin/main')
+        generatedSourceDirs += file('build/generated/source/kapt/main')
+        generatedSourceDirs += file('build/generated/source/kaptKotlin/main')
     }
 }
 
+kapt {
+    useBuildCache = false
+}
+
 dependencies {
-    implementation project(":asm:asm-processor")
     kapt project(":asm:asm-processor")
+    compileOnly project(":asm:asm-processor")
     implementation "org.ow2.asm:asm:$asm"
     implementation "org.ow2.asm:asm-commons:$asm"
     implementation "org.ow2.asm:asm-util:$asm"
     implementation "org.ow2.asm:asm-tree:$asm"
+    implementation "org.jgrapht:jgrapht-core:$jgrapht"
 }

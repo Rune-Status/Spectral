@@ -1,159 +1,159 @@
 package org.spectral.deobfuscator.transformer.rename
 
+import org.objectweb.asm.Opcodes.ACC_NATIVE
 import org.objectweb.asm.commons.ClassRemapper
 import org.objectweb.asm.commons.SimpleRemapper
 import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.MethodNode
 import org.spectral.deobfuscator.asm.ClassGroupExt
 import org.spectral.deobfuscator.Transformer
-import org.spectral.deobfuscator.util.isObfuscatedName
 import org.tinylog.kotlin.Logger
-import java.util.ArrayDeque
+import java.util.*
 
 /**
- * Generates temporary names for obfuscated classes, method, field, or localVariable
- * which have an obfuscated name.
+ * Renames all the methods to a more readable format.
  */
 class NameGenerator : Transformer {
 
     private var classCounter = 0
     private var methodCounter = 0
     private var fieldCounter = 0
-    private var variableCounter = 0
 
-    private val nameMappings = hashMapOf<String, String>()
+    private val mappings = hashMapOf<String, String>()
 
+    /**
+     * Run the renaming transformation.
+     */
     override fun transform(group: ClassGroupExt) {
-        /*
-         * Generate namings.
+        /**
+         * Generate the mappings.
          */
-        this.generateNameMappings(group)
+        this.generateMappings(group)
+        this.applyMappings(group)
 
-        /*
-         * Apply the name mappings
-         */
-        this.applyNameMappings(group)
-
-        /*
-         * Rebuild the group
-         */
-        group.rebuild()
-
-        Logger.info("Renamed [classes: $classCounter, method: $methodCounter, fields: $fieldCounter, variables: $variableCounter]")
+        Logger.info("Renamed [classes: $classCounter, methods: $methodCounter, fields: $fieldCounter].")
     }
 
     /**
-     * Generate names for all entries in [group].
-     * Puts them into the [nameMappings] map.
+     * In order to properly generate mappings, we loop through all classes, methods, and fields and generate
+     * an incremental name remap.
      *
-     * @param group ClassGroup
+     * Then, for ones with possible members, we loop back through and set the names from their super member types.
      */
-    private fun generateNameMappings(group: ClassGroupExt) {
-        /*
-         * Generate class names for only obfuscated class names.
+    private fun generateMappings(group: ClassGroupExt) {
+        /**
+         * Generate class name mappings.
          */
-        group.forEach { c ->
-            if(c.name.isObfuscatedName) {
-                nameMappings[c.name] = "class${++classCounter}"
+        group.forEach classLoop@ { c ->
+            if(c.name.length <= 2) {
+                mappings[c.name] = "class${++classCounter}"
             }
         }
 
-        /*
-         * Generate method names for only obfuscated method names.
+        /**
+         * Generate method name mappings
          */
         group.forEach classLoop@ { c ->
-            c.methods.forEach methodLoop@ { m ->
-                if(!m.name.isObfuscatedName) return@methodLoop
-                if(m.name.indexOf("<") != -1) return@methodLoop
+            c.methods.filter { it.isGamepackMethod() }.forEach methodLoop@ { m ->
+                val owner = c
+                if(m.name.indexOf("<") != -1 || (m.access and ACC_NATIVE) != 0) {
+                    return@methodLoop
+                }
 
-                val queue = ArrayDeque<ClassNode>()
-                queue.add(c)
-
-                while(queue.isNotEmpty()) {
-                    val node = queue.pop()
-                    if(node != c && node.methods.firstOrNull { it.name == m.name && it.desc == m.desc } != null) {
+                val stack = Stack<ClassNode>()
+                stack.add(owner)
+                while(stack.isNotEmpty()) {
+                    val node = stack.pop()
+                    if(node != owner && node.methods.firstOrNull { it.name == m.name && it.desc == m.desc } != null) {
                         return@methodLoop
                     }
 
                     val parent = group[node.superName]
                     if(parent != null) {
-                        queue.push(parent)
+                        stack.push(parent)
                     }
 
                     val interfaces = node.interfaces.mapNotNull { group[it] }
-                    queue.addAll(interfaces)
+                    stack.addAll(interfaces)
                 }
 
-                val newName = "method${++methodCounter}"
+                val name = "method${++methodCounter}"
 
-                queue.add(c)
-                while(queue.isNotEmpty()) {
-                    val node = queue.pop()
+                stack.add(owner)
+                while(stack.isNotEmpty()) {
+                    val node = stack.pop()
                     val key = node.name + "." + m.name + m.desc
-                    nameMappings[key] = newName
+                    mappings[key] = name
                     group.forEach { k ->
                         if(k.superName == node.name || k.interfaces.contains(node.name)) {
-                            queue.push(k)
+                            stack.push(k)
                         }
                     }
                 }
             }
         }
 
-        /*
-         * Generate field names for only obfuscated field names
+        /**
+         * Generate field name mappings
          */
         group.forEach classLoop@ { c ->
-            c.methods.forEach fieldLoop@ { f ->
-                if(!f.name.isObfuscatedName) return@fieldLoop
+            c.fields.filter { it.name.length <= 2 }.forEach fieldLoop@ { f ->
+                val owner = c
+                val stack = Stack<ClassNode>()
 
-                val queue = ArrayDeque<ClassNode>()
-                queue.add(c)
-
-                while(queue.isNotEmpty()) {
-                    val node = queue.pop()
-                    if(node != c && node.fields.firstOrNull { it.name == f.name && it.desc == f.desc } != null) {
+                stack.add(owner)
+                while(stack.isNotEmpty()) {
+                    val node = stack.pop()
+                    if(node != owner && node.fields.firstOrNull { it.name == f.name && it.desc == f.desc } != null) {
                         return@fieldLoop
                     }
 
                     val parent = group[node.superName]
                     if(parent != null) {
-                        queue.push(parent)
+                        stack.push(parent)
                     }
 
                     val interfaces = node.interfaces.mapNotNull { group[it] }
-                    queue.addAll(interfaces)
+                    stack.addAll(interfaces)
                 }
 
-                val newName = "field${++fieldCounter}"
+                val name = "field${++fieldCounter}"
 
-                queue.add(c)
-                while(queue.isNotEmpty()) {
-                    val node = queue.pop()
+                stack.add(owner)
+                while(stack.isNotEmpty()) {
+                    val node = stack.pop()
                     val key = node.name + "." + f.name
-                    nameMappings[key] = newName
+                    mappings[key] = name
                     group.forEach { k ->
                         if(k.superName == node.name || k.interfaces.contains(node.name)) {
-                            queue.push(k)
+                            stack.push(k)
                         }
                     }
                 }
             }
         }
+
     }
 
     /**
-     * Applies the generated names from [nameMappings] using the built-in
-     * ASM [SimpleRemapper] object.
-     *
-     * @param group ClassGroup
+     * Apply the mappings to the [group] using the ASM built in
+     * class remapping visitor.
      */
-    private fun applyNameMappings(group: ClassGroupExt) {
-        val remapper = SimpleRemapper(nameMappings)
+    private fun applyMappings(group: ClassGroupExt) {
+        val remapper = SimpleRemapper(mappings)
 
         group.forEachIndexed { index, c ->
             val newNode = ClassNode()
             c.accept(ClassRemapper(newNode, remapper))
             group[index] = newNode
         }
+    }
+
+
+    private fun MethodNode.isGamepackMethod(): Boolean {
+        if(this.name.length <= 2 || (this.name.length == 3 && this.name.startsWith("aa"))) {
+            return true
+        }
+        return false
     }
 }

@@ -9,4 +9,5 @@ ext {
     guava = "29.0-jre"
     autoservice = "1.0-rc7"
     kotlinpoet = "1.6.0"
+    jgrapht = "1.5.0"
 }
