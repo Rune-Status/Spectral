@@ -14,7 +14,7 @@ import org.spectral.asm.processor.Import
  * @property node The internal [ClassNode] this object extends.
  * @constructor
  */
-open class Class(val group: ClassGroup, internal val node: ClassNode) {
+open class Class(val group: ClassGroup, val node: ClassNode) {
 
     /**
      * The name of the class.

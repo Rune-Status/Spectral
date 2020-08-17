@@ -1,0 +1,10 @@
+dependencies {
+    implementation project(":asm")
+    api project(":mapping")
+    implementation "org.ow2.asm:asm:$asm"
+    implementation "org.ow2.asm:asm-commons:$asm"
+    implementation "org.ow2.asm:asm-util:$asm"
+    implementation "org.ow2.asm:asm-tree:$asm"
+    implementation "org.jgrapht:jgrapht-core:$jgrapht"
+    implementation "com.github.ajalt:clikt:$clikt"
+}

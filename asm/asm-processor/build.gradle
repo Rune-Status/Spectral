@@ -4,8 +4,8 @@ dependencies {
     implementation "com.squareup:kotlinpoet:$kotlinpoet"
     implementation "com.google.auto.service:auto-service:$autoservice"
     kapt "com.google.auto.service:auto-service:$autoservice"
-    implementation "org.ow2.asm:asm:$asm"
-    implementation "org.ow2.asm:asm-commons:$asm"
-    implementation "org.ow2.asm:asm-util:$asm"
-    implementation "org.ow2.asm:asm-tree:$asm"
+    api "org.ow2.asm:asm:$asm"
+    api "org.ow2.asm:asm-commons:$asm"
+    api "org.ow2.asm:asm-util:$asm"
+    api "org.ow2.asm:asm-tree:$asm"
 }

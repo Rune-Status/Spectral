@@ -15,7 +15,7 @@ import java.lang.reflect.Modifier
  * @property node FieldNode
  * @constructor
  */
-class Field(val group: ClassGroup, val owner: Class, internal val node: FieldNode) {
+class Field(val group: ClassGroup, val owner: Class, val node: FieldNode) {
 
     /**
      * The name of the field.
