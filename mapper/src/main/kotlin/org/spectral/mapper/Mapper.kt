@@ -2,10 +2,12 @@ package org.spectral.mapper
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import org.spectral.asm.*
 import org.spectral.mapper.matcher.*
 import org.spectral.mapper.util.CompareUtil
+import org.spectral.mapping.Mappings
 import org.tinylog.kotlin.Logger
 
 /**
@@ -442,6 +444,9 @@ class Mapper(val groupA: ClassGroup, val groupB: ClassGroup) {
             private val inputJarFile by argument(name = "input file", help = "The mapped/renamed jar file path").file(mustExist = true, canBeDir = false)
             private val targetJarFile by argument("target file", help = "The un-mapped, new jar file path").file(mustExist = true, canBeDir = false)
 
+            private val exportFlag by option("-e", "--export", help = "The folder path to export mappings to.")
+                .file(mustExist = false, canBeDir = true)
+
             override fun run() {
                 Logger.info("Preparing to run mapper.")
 
@@ -450,6 +455,19 @@ class Mapper(val groupA: ClassGroup, val groupB: ClassGroup) {
 
                 val mapper = Mapper(groupA, groupB)
                 mapper.run()
+
+                /*
+                 * If the export flag is specified,
+                 * build and export the methods to a provided directory.
+                 */
+                if(exportFlag != null) {
+                    Logger.info("Building mappings from mapper results.")
+
+                    val mappings = Mappings()
+                    mappings.load(mapper.matches)
+
+                    mappings.export(exportFlag!!)
+                }
             }
 
         }.main(args)
