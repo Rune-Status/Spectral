@@ -26,7 +26,6 @@ class AsmAnnotationProcessingStep(
     override fun process(elementsByAnnotation: SetMultimap<Class<out Annotation>, Element>): Set<Element> {
         try {
             elementsByAnnotation[Import::class.java].forEach { annotatedElement ->
-                messager.printMessage(Diagnostic.Kind.NOTE, "Detected annotated field: '${annotatedElement.enclosingElement.simpleName}.${annotatedElement.simpleName}'\n")
                 if(annotatedElement.kind !== ElementKind.FIELD) {
                     throw ProcessingException(annotatedElement, "Only fields can be annotated with @Shadow")
                 }
@@ -46,7 +45,6 @@ class AsmAnnotationProcessingStep(
             val fileSpec = FileSpec.builder("org.spectral.asm", "AsmGeneratedExt")
             generatedPropertySpecs.forEach {
                 fileSpec.addProperty(it)
-                messager.printMessage(Diagnostic.Kind.NOTE, "Adding property for '${it.receiverType.toString()}.${it.name}\n")
             }
             fileSpec.build().writeTo(outputDir)
 

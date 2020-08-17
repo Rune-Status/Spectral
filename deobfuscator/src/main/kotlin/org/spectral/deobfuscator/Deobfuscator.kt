@@ -2,6 +2,8 @@ package org.spectral.deobfuscator
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import me.tongfei.progressbar.ProgressBar
 import me.tongfei.progressbar.ProgressBarBuilder
@@ -60,15 +62,20 @@ class Deobfuscator {
     /**
      * Runs the deobfuscation with a [Unit] consumer call back.
      *
+     * @param clean Whether to skip the name generator transformer.
      * @param consumer Function0<Unit>
      */
-    fun run(consumer: () -> Unit) {
+    fun run(clean: Boolean = false, consumer: () -> Unit) {
         /*
          * Apply each transformer
          */
         Logger.info("Preparing to run bytecode transformers.")
 
         transformers.forEach { transformer ->
+            if(clean && transformer is NameGenerator) {
+                return@forEach
+            }
+
             consumer()
             Logger.info("Running bytecode transformer '${transformer::class.simpleName}'...")
             transformer.transform(group)
@@ -77,8 +84,10 @@ class Deobfuscator {
 
     /**
      * Runs the deobfuscation with an empty consumer [Unit] callback.
+     *
+     * @param clean Whether to skip the name generator transformer.
      */
-    fun run() = this.run {}
+    fun run(clean: Boolean = false) = this.run {}
 
     companion object {
         @JvmStatic
@@ -91,6 +100,8 @@ class Deobfuscator {
 
             private val inputFile by argument(name = "input file", help = "The obfuscated input JAR file.").file(mustExist = true, canBeDir = false)
             private val outputFile by argument(name = "output file", help = "The output JAR file to export to.").file(mustExist = false, canBeDir = false)
+
+            private val clean by option("-c", "--clean", help = "Disables the name generator transformer.").flag(default = false)
 
             private inline fun <R> ProgressBar.run(block: (ProgressBar) -> R): R {
                 var exception: Throwable? = null
@@ -130,7 +141,7 @@ class Deobfuscator {
                     .build()
 
                 progress.run { p ->
-                    deobfuscator.run {
+                    deobfuscator.run(clean) {
                         p.step()
                     }
 
