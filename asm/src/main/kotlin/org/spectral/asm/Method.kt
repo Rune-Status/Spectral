@@ -16,7 +16,7 @@ import java.lang.reflect.Modifier
  * @property node The internal [MethodNode] that this object is an extension of.
  * @constructor
  */
-class Method(val group: ClassGroup, val owner: Class, internal val node: MethodNode) {
+class Method(val group: ClassGroup, val owner: Class, val node: MethodNode) {
 
     /**
      * The name of the method.

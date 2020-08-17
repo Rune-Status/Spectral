@@ -18,7 +18,7 @@ object ScoreUtil {
      * @param b Class
      * @return Int
      */
-    fun calculateScore(matches: MatchGroup, a: Class, b: Class): Int {
+    fun calculateScore(a: Class, b: Class): Int {
         var score = 0
 
         /*
@@ -50,7 +50,7 @@ object ScoreUtil {
      * @param b Method
      * @return Int
      */
-    fun calculateScore(matches: MatchGroup, a: Method, b: Method): Int {
+    fun calculateScore(a: Method, b: Method): Int {
         var score = 0
 
         /*

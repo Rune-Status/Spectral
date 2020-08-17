@@ -3,6 +3,7 @@ package org.spectral.mapper
 import com.google.common.collect.HashMultimap
 import org.objectweb.asm.tree.MethodNode
 import org.spectral.asm.ClassGroup
+import org.spectral.asm.Method
 
 /**
  * Represents a collection of [Match] objects which
@@ -32,13 +33,13 @@ class MatchGroup(val groupA: ClassGroup, val groupB: ClassGroup) {
      * When the match group is being used as a [Match], the A method
      * being matched.
      */
-    var cardinalMethodA: MethodNode? = null
+    var cardinalMethodA: Method? = null
 
     /**
      * When the match group is being used as a [Match], the B method
      * being matched.
      */
-    var cardinalMethodB: MethodNode? = null
+    var cardinalMethodB: Method? = null
 
     /**
      * Gets or creates a new [Match].

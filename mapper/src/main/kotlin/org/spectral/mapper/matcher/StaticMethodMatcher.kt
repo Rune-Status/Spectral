@@ -11,7 +11,7 @@ class StaticMethodMatcher {
 
     private val ClassGroup.staticMethods: List<Method> get() = this.flatMap { it.methods }
         .filter { it.isStatic }
-        .filter { !it.isConstructor && !it.isInitializer }
+        .filter { !it.isInitializer }
 
     private fun Method.getPotentialMatches(group: ClassGroup): List<Method> {
         return group.staticMethods.filter { CompareUtil.isPotentialMatch(this, it) }

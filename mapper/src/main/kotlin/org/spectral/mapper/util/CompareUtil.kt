@@ -36,6 +36,8 @@ object CompareUtil {
             }
 
             if(!foundMatch) return false
+        } else {
+            if(a.interfaces.isNotEmpty() && b.interfaces.isNotEmpty()) return false
         }
 
         return true
