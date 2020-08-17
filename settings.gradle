@@ -3,3 +3,4 @@ rootProject.name = 'spectral'
 include ":asm"
 include ":asm:asm-processor"
 include ":deobfuscator"
+include ":mapper"
