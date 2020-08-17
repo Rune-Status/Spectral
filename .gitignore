@@ -5,3 +5,4 @@ out/
 *.jar
 !gradle-wrapper.jar
 *.log
+runescape-mappings/

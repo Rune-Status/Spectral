@@ -7,7 +7,10 @@ import com.github.ajalt.clikt.parameters.types.file
 import org.spectral.asm.*
 import org.spectral.mapper.matcher.*
 import org.spectral.mapper.util.CompareUtil
+import org.spectral.mapping.ClassMapping
+import org.spectral.mapping.FieldMapping
 import org.spectral.mapping.Mappings
+import org.spectral.mapping.MethodMapping
 import org.tinylog.kotlin.Logger
 
 /**
@@ -463,6 +466,10 @@ class Mapper(val groupA: ClassGroup, val groupB: ClassGroup) {
                 if(exportFlag != null) {
                     Logger.info("Building mappings from mapper results.")
 
+                    if(!exportFlag!!.exists()) {
+                        exportFlag!!.mkdirs()
+                    }
+
                     val mappings = Mappings()
                     mappings.load(mapper.matches)
 
@@ -471,5 +478,49 @@ class Mapper(val groupA: ClassGroup, val groupB: ClassGroup) {
             }
 
         }.main(args)
+
+        /**
+         * Initializes the mappings from a [MatchGroup]
+         *
+         * @param matches MatchGroup
+         */
+        fun Mappings.load(matches: MatchGroup) {
+            /*
+             * Get the classes first.
+             */
+            matches.groupA.forEach {
+                val clsA = it
+                val clsB = matches[clsA] as Class?
+
+                val classMapping = ClassMapping(clsA.name, if(clsB == null) "?" else clsB.name)
+
+                /*
+                 * Get the fields that are parented to [clsA]
+                 */
+                matches.matches.keySet().filterIsInstance<Field>().filter { it.owner == clsA }.forEach {
+                    val fieldA = it
+                    val fieldB = matches[fieldA] as Field? ?: throw NullPointerException("No match found for field key: '${fieldA}'.")
+
+                    val fieldMapping = FieldMapping(fieldA.name, fieldA.desc, fieldA.owner.name, fieldB.name, fieldB.desc, fieldB.owner.name)
+                    classMapping.fields.add(fieldMapping)
+                }
+
+                /*
+                 * Get the methods that are parented to [clsA]
+                 */
+                matches.matches.keySet().filterIsInstance<Method>().filter { it.owner == clsA }.forEach {
+                    val methodA = it
+                    val methodB = matches[methodA] as Method? ?: throw NullPointerException("No match found for method key: '${methodA}'.")
+
+                    val methodMapping = MethodMapping(methodA.name, methodA.desc, methodA.owner.name, methodB.name, methodB.desc, methodB.owner.name)
+                    classMapping.methods.add(methodMapping)
+                }
+
+                /*
+                 * Add the class mapping to the [classes] list.
+                 */
+                classes.add(classMapping)
+            }
+        }
     }
 }

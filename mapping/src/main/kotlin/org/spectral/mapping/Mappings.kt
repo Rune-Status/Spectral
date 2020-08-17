@@ -1,15 +1,8 @@
 package org.spectral.mapping
 
-import org.objectweb.asm.tree.ClassNode
-import org.objectweb.asm.tree.FieldNode
-import org.objectweb.asm.tree.MethodNode
-import org.spectral.asm.Field
-import org.spectral.asm.Method
-import org.spectral.asm.desc
-import org.spectral.asm.name
-import org.spectral.mapper.MatchGroup
 import org.tinylog.kotlin.Logger
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 
 /**
@@ -24,47 +17,33 @@ class Mappings {
     val classes = mutableListOf<ClassMapping>()
 
     /**
-     * Initializes the mappings from a [MatchGroup]
+     * Loads and parses mappings from a directory.
      *
-     * @param matches MatchGroup
+     * @param folder File
      */
-    fun load(matches: MatchGroup) {
-        /*
-         * Get the classes first.
-         */
-        matches.groupA.forEach {
-            val clsA = it
-            val clsB = matches[clsA] as ClassNode?
+    fun load(folder: File) {
+       Logger.info("Loading mappings from directory: '${folder.path}'.")
 
-            val classMapping = ClassMapping(clsA.name, if(clsB == null) "?" else clsB.name)
+        val mappingFiles = folder.listFiles { _, name -> name.endsWith(".mapping") } ?: throw IOException()
 
-            /*
-             * Get the fields that are parented to [clsA]
-             */
-            matches.matches.keySet().filterIsInstance<Field>().filter { it.owner == clsA }.forEach {
-                val fieldA = it
-                val fieldB = matches[fieldA] as Field? ?: throw NullPointerException("No match found for field key: '${fieldA}'.")
+        if(mappingFiles.isEmpty()) {
+            Logger.error("No mapping files found in folder: '${folder.path}'.")
+            return
+        }
 
-                val fieldMapping = FieldMapping(fieldA.name, fieldA.desc, fieldA.owner.name, fieldB.name, fieldB.desc, fieldB.owner.name)
-                classMapping.fields.add(fieldMapping)
+        mappingFiles.forEach { f ->
+            Logger.info("Loading mapping file: '${f.name}'")
+
+            val rawText = Files.newBufferedReader(f.toPath()).use { reader ->
+                return@use reader.readText()
             }
 
-            /*
-             * Get the methods that are parented to [clsA]
-             */
-            matches.matches.keySet().filterIsInstance<Method>().filter { it.owner == clsA }.forEach {
-                val methodA = it
-                val methodB = matches[methodA] as Method? ?: throw NullPointerException("No match found for method key: '${methodA}'.")
+            val classMapping = MappingParser.parse(rawText)
 
-                val methodMapping = MethodMapping(methodA.name, methodA.desc, methodA.owner.name, methodB.name, methodB.desc, methodB.owner.name)
-                classMapping.methods.add(methodMapping)
-            }
-
-            /*
-             * Add the class mapping to the [classes] list.
-             */
             classes.add(classMapping)
         }
+
+        Logger.info("Successfully loaded ${classes.size} class mappings.")
     }
 
     /**

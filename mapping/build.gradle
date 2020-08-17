@@ -1,8 +1,2 @@
 dependencies {
-    api project(":asm")
-    api project(":mapper")
-    api "org.ow2.asm:asm:$asm"
-    api "org.ow2.asm:asm-commons:$asm"
-    api "org.ow2.asm:asm-util:$asm"
-    api "org.ow2.asm:asm-tree:$asm"
 }
