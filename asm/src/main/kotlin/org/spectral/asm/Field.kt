@@ -35,6 +35,9 @@ class Field(val group: ClassGroup, val owner: Class, val node: FieldNode) {
     @Import
     private val access: Int = -1
 
+    @Import
+    private val value: Any? = null
+
     /**
      * The ASM [Type] of this field
      */

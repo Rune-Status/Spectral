@@ -42,7 +42,7 @@ class ExecutionMatcher(private val source: Method, private val targets: Collecti
         }
 
         if(conflict) {
-            //return null
+            return null
         }
 
         return highest
@@ -85,7 +85,7 @@ class ExecutionMatcher(private val source: Method, private val targets: Collecti
             /*
              * Some simple scorings
              */
-            score += ScoreUtil.calculateScore(methodA, methodB)
+            score += ScoreUtil.calculateScore(methodA, methodB) * 5
 
             /*
              * The execution objects for both methods.

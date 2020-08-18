@@ -179,7 +179,8 @@ object ExecutionUtil {
              * we can go ahead and add them to the matches.
              */
             if(match) {
-                matches.match(fieldA!!, fieldB!!)
+                val m = matches.match(fieldA!!, fieldB!!)
+                m.score += ScoreUtil.calculateScore(fieldA, fieldB)
             }
 
             return match

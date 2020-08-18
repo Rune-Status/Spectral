@@ -52,7 +52,6 @@ object CompareUtil {
      * @return Boolean
      */
     fun isPotentialMatch(a: Method, b: Method): Boolean {
-        if(a.isStatic != b.isStatic) return false
         if(a.isPrivate != b.isPrivate) return false
         if(a.isConstructor != b.isConstructor) return false
         if(a.isInitializer != b.isInitializer) return false
@@ -76,8 +75,7 @@ object CompareUtil {
      * @return Boolean
      */
     fun isPotentialMatch(a: Field, b: Field): Boolean {
-        if(a.isStatic != b.isStatic) return false
-        if(a.isPrivate != b.isPrivate) return false
+        if(a.value == b.value) return true
         if(!a.isStatic && !b.isStatic) {
             if(!isPotentialMatch(a.owner, b.owner)) return false
         }
@@ -120,9 +118,6 @@ object CompareUtil {
      */
     fun isPotentialTypeMatch(a: Type, b: Type): Boolean {
         if(a.sort != b.sort) return false
-        if(a.isPrimitive && b.isPrimitive) {
-            return a == b
-        }
 
         return true
     }

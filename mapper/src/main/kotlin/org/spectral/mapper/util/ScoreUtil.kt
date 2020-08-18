@@ -1,7 +1,9 @@
 package org.spectral.mapper.util
 
 import org.spectral.asm.Class
+import org.spectral.asm.Field
 import org.spectral.asm.Method
+import org.spectral.asm.value
 import org.spectral.mapper.MatchGroup
 
 /**
@@ -96,6 +98,40 @@ object ScoreUtil {
             b.overrides.forEach { overrideB ->
                 if(CompareUtil.isPotentialMatch(overrideA, overrideB)) score++
             }
+        }
+
+        return score
+    }
+
+    /**
+     * Calculates a simple similarity score between a given
+     * pair of [Field] objects.
+     *
+     * @param a Field
+     * @param b Field
+     * @return Int
+     */
+    fun calculateScore(a: Field, b: Field): Int {
+        var score = 0
+
+        if(!a.isStatic && !b.isStatic) {
+            if(CompareUtil.isPotentialMatch(a.owner, b.owner)) score++
+        }
+
+        a.reads.forEach { readA ->
+            b.reads.forEach { readB ->
+                if(CompareUtil.isPotentialMatch(readA, readB)) score++
+            }
+        }
+
+        a.writes.forEach { writeA ->
+            b.writes.forEach { writeB ->
+                if(CompareUtil.isPotentialMatch(writeA, writeB)) score++
+            }
+        }
+
+        if(a.type.sort == b.type.sort) {
+            if(a.value == b.value) score++
         }
 
         return score

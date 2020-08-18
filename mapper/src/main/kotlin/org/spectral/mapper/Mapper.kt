@@ -174,7 +174,7 @@ class Mapper(val groupA: ClassGroup, val groupB: ClassGroup) {
             match.score = executionResults.score
             match.executed = true
 
-            Logger.info("Matched MEMBER method [${executionResults.cardinalMethodA!!}] -> [${executionResults.cardinalMethodB!!}]")
+            Logger.info("Matched method [${executionResults.cardinalMethodA!!}] -> [${executionResults.cardinalMethodB!!}]")
 
             matches.add(executionResults)
         }

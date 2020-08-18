@@ -27,7 +27,7 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
             .receiver(cls)
             .mutable(!annotation.immutable)
             .getter(FunSpec.getterBuilder()
-                .addStatement("return node.${delegateName}!!")
+                .addStatement("return node.${delegateName}")
                 .build())
             .setter(FunSpec.setterBuilder()
                 .addParameter("value", element.asType().asTypeName().correctType())
@@ -39,6 +39,7 @@ class AsmAnnotatedFieldFactory(private val element: Element) {
     }
 
     private fun TypeName.correctType() = when {
+        this.toString().startsWith("java.lang.Object") -> Any::class.asTypeName().copy(nullable = true)
         this.toString().startsWith("java.lang.String") -> String::class.asTypeName()
         this.toString().startsWith("java.util.List") -> ClassName("kotlin.collections", "List")
             .parameterizedBy(Class.forName(this.toString().substring(this.toString().indexOf("<") + 1, this.toString().indexOf(">"))).kotlin.asTypeName())
