@@ -94,13 +94,9 @@ class FeatureExtractor(val group: ClassGroup) {
         if(!cls.real) return
 
         val hierarchyIterator = DepthFirstIterator(cls.group.hierarchyGraph, cls)
-
-        val classHierarchy = hashSetOf<Class>()
         while(hierarchyIterator.hasNext()) {
-            classHierarchy.add(hierarchyIterator.next())
+            cls.hierarchy.add(hierarchyIterator.next())
         }
-
-        cls.hierarchy.addAll(classHierarchy)
     }
 
     private fun processC(cls: Class) {
@@ -110,30 +106,32 @@ class FeatureExtractor(val group: ClassGroup) {
          * Build method overrides
          */
         cls.methods.forEach { m ->
-            val methodOverrides = m.owner.hierarchy.flatMap { it.methods }
-                .filter { !it.isStatic && !it.isPrivate }
-                .filter { it.name == m.name && it.desc == m.desc }
-                .filter { it.owner != m.owner }
+            val methodOverrides = mutableListOf<Method>()
 
-            val comparator = compareBy<Method> { !Modifier.isAbstract(it.access) }
-                .thenByDescending { m.owner.hierarchy.indexOf(it.owner) }
+            m.owner.hierarchy.forEach {
+                it.methods
+                    .filter { !it.isStatic && !it.isPrivate }
+                    .filter { it.name == m.name && it.desc == m.desc }
+                    .filter { it.owner != m.owner }.forEach { methodOverrides.add(it) }
+            }
 
-            m.overrides.addAll(methodOverrides.sortedWith(comparator))
+            m.overrides.addAll(methodOverrides)
         }
 
         /*
          * Build Field Overrides
          */
         cls.fields.forEach { f ->
-            val fieldOverrides = f.owner.hierarchy.flatMap { it.fields }
-                .filter { !it.isStatic && !it.isPrivate }
-                .filter { it.name == f.name && it.desc == f.desc }
-                .filter { it.owner != f.owner }
+            val fieldOverrides = mutableListOf<Field>()
 
-            val comparator = compareBy<Field> { !Modifier.isAbstract(it.access) }
-                .thenByDescending { f.owner.hierarchy.indexOf(it.owner) }
+            f.owner.hierarchy.forEach {
+                it.fields
+                    .filter { !it.isStatic && !it.isPrivate }
+                    .filter { it.name == f.name && it.desc == f.desc }
+                    .filter { it.owner != f.owner }.forEach { fieldOverrides.add(it) }
+            }
 
-            f.overrides.addAll(fieldOverrides.sortedWith(comparator))
+            f.overrides.addAll(fieldOverrides)
         }
 
         cls.methods.stream().collect(Collectors.toSet()).forEach { m ->

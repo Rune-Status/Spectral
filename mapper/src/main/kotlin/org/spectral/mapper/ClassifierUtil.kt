@@ -1,4 +1,4 @@
-package org.spectral.mapper.util
+package org.spectral.mapper
 
 import org.spectral.asm.Class
 import org.spectral.asm.Field
@@ -78,9 +78,15 @@ object ClassifierUtil {
      * @return Boolean
      */
     fun checkNameMatch(a: String, b: String): Boolean {
-        return if(isObfuscatedName(a) && isObfuscatedName(b)) { // Both are obfuscated names
+        return if(isObfuscatedName(a) && isObfuscatedName(
+                b
+            )
+        ) { // Both are obfuscated names
             true
-        } else if(isObfuscatedName(a) != isObfuscatedName(b)) { // Only one name is obfuscated
+        } else if(isObfuscatedName(a) != isObfuscatedName(
+                b
+            )
+        ) { // Only one name is obfuscated
             false
         } else { // Neither are obfuscated names
             a == b
@@ -148,7 +154,11 @@ object ClassifierUtil {
      * @return Double
      */
     fun compareClassSets(setA: MutableSet<Class>, setB: MutableSet<Class>): Double {
-        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+        return compareMatchableSets(
+            setA,
+            setB,
+            ClassifierUtil::isPotentiallyEqual
+        )
     }
 
     /**
@@ -159,11 +169,19 @@ object ClassifierUtil {
      * @return Double
      */
     fun compareMethodSets(setA: MutableSet<Method>, setB: MutableSet<Method>): Double {
-        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+        return compareMatchableSets(
+            setA,
+            setB,
+            ClassifierUtil::isPotentiallyEqual
+        )
     }
 
     fun compareFieldSets(setA: MutableSet<Field>, setB: MutableSet<Field>): Double {
-        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+        return compareMatchableSets(
+            setA,
+            setB,
+            ClassifierUtil::isPotentiallyEqual
+        )
     }
 
     /**
@@ -248,5 +266,40 @@ object ClassifierUtil {
         }
 
         return ((total - unmatched) / total).toDouble()
+    }
+
+    fun <T : Matchable<T>> rank(src: T, dsts: Array<T>, classifiers: Collection<Classifier<T>>, predicate: (T, T) -> Boolean, maxMismatch: Double): List<RankResult<T>> {
+        val ret = mutableListOf<RankResult<T>>()
+
+        for(dst in dsts) {
+            val result = rank(src, dst, classifiers, predicate, maxMismatch)
+            if(result != null) {
+                ret.add(result)
+            }
+        }
+
+        return ret.sortedByDescending { it.score }
+    }
+
+    private fun <T : Matchable<T>> rank(src: T, dst: T, classifiers: Collection<Classifier<T>>, predicate: (T, T) -> Boolean, maxMismatch: Double): RankResult<T>? {
+        if(!predicate(src, dst)) return null
+
+        var score = 0.0
+        var mismatch = 0.0
+        val results = mutableListOf<ClassifierResult<T>>()
+
+        for(classifier in classifiers) {
+            val cScore = classifier.getScore(src, dst)
+            val weight = classifier.weight
+            val weightedScore = cScore * weight
+
+            mismatch += weight - weightedScore
+            if(mismatch >= maxMismatch) return null
+
+            score += weightedScore
+            results.add(ClassifierResult(classifier, score))
+        }
+
+        return RankResult(dst, score, results)
     }
 }

@@ -7,4 +7,5 @@ dependencies {
     implementation "org.ow2.asm:asm-tree:$asm"
     implementation "org.jgrapht:jgrapht-core:$jgrapht"
     implementation "com.github.ajalt:clikt:$clikt"
+    implementation "me.tongfei:progressbar:$progressbar"
 }
