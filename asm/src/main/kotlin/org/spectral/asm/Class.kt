@@ -1,178 +1,112 @@
 package org.spectral.asm
 
-import org.jgrapht.traverse.DepthFirstIterator
-import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.Opcodes.ASM8
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
-import org.spectral.asm.processor.Import
+import org.spectral.asm.util.asm
+import java.util.stream.Collectors
 
 /**
- * Represents an ASM [ClassNode] or class which
- * is apart of a class group.
+ * Represents a java class.
  *
- * @property group The class group this class belongs in.
- * @property node The internal [ClassNode] this object extends.
+ * @property group ClassGroup
+ * @property node ClassNode
+ * @property real Boolean
  * @constructor
  */
-open class Class(val group: ClassGroup, val node: ClassNode) {
+class Class private constructor(
+    val group: ClassGroup,
+    val node: ClassNode,
+    val real: Boolean
+) : Matchable<Class>() {
 
     /**
-     * The name of the class.
-     */
-    @Import(name = "name")
-    private val name: String? = null
-
-    /**
-     * The name of the class which this class extends.
-     */
-    @Import(name = "superName")
-    private val parentName: String? = null
-
-    /**
-     * The access bit-packed opcodes
-     */
-    @Import
-    private val access: Int = -1
-
-    /**
-     * A list of class names which this class implements.
-     */
-    @Import(name = "interfaces")
-    private val interfaceNames: List<String>? = null
-
-    /**
-     * The ASM [Type] of this class.
-     */
-    val type = Type.getObjectType(node.name)
-
-    /**
-     * The parent [Class] which this class extends if it is
-     * apart of the same class group object.
-     */
-    var parent: Class? = null
-        internal set
-
-    /**
-     * The [Class] objects which extend this class.
-     */
-    val children = mutableListOf<Class>()
-
-    /**
-     * The [Class]s that this class implements.
-     */
-    val interfaces = mutableListOf<Class>()
-
-    /**
-     * The [Class]s that implement this class as an interface.
-     */
-    val implementers = mutableListOf<Class>()
-
-    /**
-     * The Methods contained in this class object.
-     */
-    val methods = node.methods.map { Method(group, this, it) }
-
-    /**
-     * The fields contained in this class object.
-     */
-    val fields = node.fields.map { Field(group, this, it) }
-
-    /**
-     * The hierarchy classes for this class object.
+     * Creates a real known [Class] object.
      *
-     * This model contains a list of [Class] objects which
-     * this object has access to via inheritance.
-     *
-     * This information is deprived the the class group hierarchy graph
-     * and the edges between this object's vertex in the graph.
+     * @param group ClassGroup
+     * @param node ClassNode
+     * @constructor
      */
-    val hierarchy = mutableListOf<Class>()
+    constructor(group: ClassGroup, node: ClassNode) : this(group, node, true)
 
     /**
-     * Gets a method inside the class given a name and descriptor of
-     * the method.
+     * Creates a non-real unknown [Class] object.
      *
-     * @param name The name of the method
-     * @param desc The type descriptor of the method
-     * @return Method?
+     * @param group ClassGroup
+     * @param name String
+     * @constructor
      */
-    fun getMethod(name: String, desc: String): Method? {
-        return this.methods.firstOrNull { it.name == name && it.desc == desc }
+    constructor(group: ClassGroup, name: String) : this(group, ClassNode(ASM8), false) {
+        this.name = name
+        this.parentName = "java/lang/Object"
+        this.match = this
     }
 
+    var name: String by asm(node::name)
+
+    var parentName: String by asm(node::superName)
+
+    var access: Int by asm(node::access)
+
+    val interfaceNames: List<String> by asm(node::interfaces)
+
+    val type get() = Type.getObjectType(name)
+
+    lateinit var methods: MutableSet<Method>
+
+    lateinit var fields: MutableSet<Field>
+
+    lateinit var parent: Class
+
+    val children = hashSetOf<Class>()
+
+    val interfaces = hashSetOf<Class>()
+
+    val implementers = hashSetOf<Class>()
+
+    val hierarchy = hashSetOf<Class>()
+
+    val strings = hashSetOf<String>()
+
+    val methodTypeRefs = hashSetOf<Method>()
+
+    val fieldTypeRefs = hashSetOf<Field>()
+
     /**
-     * Gets a field inside the class given a name and descriptor of a field.
+     * Gets a method in the current class given the name
+     * and descriptor of the method.
+     *
+     * If no method exists, a non-real method is created.
      *
      * @param name String
      * @param desc String
-     * @return Field?
+     * @return Method
      */
-    fun getField(name: String, desc: String): Field? {
-        return this.fields.firstOrNull { it.node.name == name && it.node.desc == desc }
-    }
-
-    /**
-     * Resolves a method from the current class or from
-     * the hierarchy tree.
-     *
-     * @param name String
-     * @param desc String
-     * @return Method?
-     */
-    fun resolveMethod(name: String, desc: String): Method? {
-        this.hierarchy.forEach { c ->
-            val ret = getMethod(name, desc)
-            if(ret != null) return ret
+    fun getMethod(name: String, desc: String): Method {
+        var method = methods.firstOrNull { it.name == name && it.desc == desc }
+        if(method == null) {
+            method = Method(group, this, name, desc)
+            methods.add(method)
         }
 
+        return method
+    }
+
+    fun getField(name: String, desc: String): Field {
+        var field = fields.firstOrNull { it.name == name && it.desc == desc }
+        if(field == null) {
+            field = Field(group, this, name, desc)
+            fields.add(field)
+        }
+
+        return field
+    }
+
+    fun resolveMethod(name: String, desc: String, toInterface: Boolean): Method? {
         return null
     }
 
-    /**
-     * Resolves a field from the current class or from
-     * the hierarchy tree.
-     *
-     * @param name String
-     * @param desc String
-     * @return Field?
-     */
-    fun resolveField(name: String, desc: String): Field? {
-        this.hierarchy.forEach { c ->
-            val ret = getField(name, desc)
-            if(ret != null) return ret
-        }
-
-        return null
+    override fun toString(): String {
+        return name
     }
-
-    /**
-     * Makes the given [classVisitor] visit the [ClassNode]
-     * object that is embedded in this object.
-     *
-     * @param classVisitor ClassVisitor
-     */
-    fun accept(classVisitor: ClassVisitor) {
-        this.node.accept(classVisitor)
-    }
-
-    /**
-     * Post processing of data models in this class.
-     */
-    internal fun process() {
-        /*
-         * Build this class's hierarchy model
-         */
-        val hierarchyIterator = DepthFirstIterator(group.hierarchyGraph, this)
-
-        while(hierarchyIterator.hasNext()) {
-            this.hierarchy.add(hierarchyIterator.next())
-        }
-
-        /*
-         * Process each method.
-         */
-        methods.forEach { it.process() }
-    }
-
-    override fun toString(): String = node.name
 }

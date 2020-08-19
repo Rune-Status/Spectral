@@ -1,79 +1,72 @@
 package org.spectral.asm
 
-import org.objectweb.asm.ClassVisitor
-import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.FieldNode
-import org.spectral.asm.processor.Import
+import org.spectral.asm.util.asm
 import java.lang.reflect.Modifier
 
 /**
- * Represents an ASM [FieldNode] or a field which is apart of a class
- *
- * @property group ClassGroup
- * @property owner Class
- * @property node FieldNode
- * @constructor
+ * Represents a field that is apart of a class.
  */
-class Field(val group: ClassGroup, val owner: Class, val node: FieldNode) {
+class Field private constructor(
+    val group: ClassGroup,
+    val owner: Class,
+    val node: FieldNode,
+    val read: Boolean
+){
 
     /**
-     * The name of the field.
-     */
-    @Import
-    private val name: String? = null
-
-    /**
-     * The type descriptor of the field.
-     */
-    @Import
-    private val desc: String? = null
-
-    /**
-     * The access bit-packed opcodes
-     */
-    @Import
-    private val access: Int = -1
-
-    @Import
-    private val value: Any? = null
-
-    /**
-     * The ASM [Type] of this field
-     */
-    val type = Type.getType(node.desc)
-
-    /**
-     * A list of [Method] objects which read the value from
-     * this field object.
-     */
-    val reads = mutableListOf<Method>()
-
-    /**
-     * A list of [Method] objects which write or change the value
-     * of this field object.
-     */
-    val writes = mutableListOf<Method>()
-
-    /**
-     * Whether the field is static.
-     */
-    val isStatic: Boolean get() = Modifier.isStatic(node.access)
-
-    /**
-     * Whether the field is private.
-     */
-    val isPrivate: Boolean get() = Modifier.isPrivate(node.access)
-
-    /**
-     * Makes the given [classVisitor] visit this field's ASM [node]
-     * object.
+     * Creates a real (known) field.
      *
-     * @param classVisitor ClassVisitor
+     * @param group ClassGroup
+     * @param owner Class
+     * @param node FieldNode
+     * @constructor
      */
-    fun accept(classVisitor: ClassVisitor) {
-        node.accept(classVisitor)
+    constructor(group: ClassGroup, owner: Class, node: FieldNode) : this(group, owner, node, true)
+
+    /**
+     * Creates a non real (unknown) field.
+     *
+     * @param group ClassGroup
+     * @param owner Class
+     * @param name String
+     * @param desc String
+     * @constructor
+     */
+    constructor(group: ClassGroup, owner: Class, name: String, desc: String) : this(group, owner, DEFAULT_FIELD_NODE, false) {
+        this.name = name
+        this.desc = desc
     }
 
-    override fun toString(): String = "$owner.${node.name}"
+    var name by asm(node::name)
+
+    var desc by asm(node::desc)
+
+    var access by asm(node::access)
+
+    var value by asm(node::value)
+
+    val type get() = Type.getType(desc)
+
+    val isStatic: Boolean get() = Modifier.isStatic(this.access)
+
+    val isPrivate: Boolean get() = Modifier.isPrivate(this.access)
+
+    val readRefs = hashSetOf<Method>()
+
+    val writeRefs = hashSetOf<Method>()
+
+    val overrides = hashSetOf<Field>()
+
+    override fun toString(): String {
+        return "$owner.$name"
+    }
+
+    companion object {
+        /**
+         * An empty default field node instance.
+         */
+        private val DEFAULT_FIELD_NODE get() = FieldNode(0, "", "", null, null)
+    }
 }

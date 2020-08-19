@@ -1,22 +1,4 @@
-apply plugin: 'kotlin-kapt'
-apply plugin: 'idea'
-
-idea {
-    module {
-        sourceDirs += file('build/generated/source/kapt/main')
-        sourceDirs += file('build/generated/source/kaptKotlin/main')
-        generatedSourceDirs += file('build/generated/source/kapt/main')
-        generatedSourceDirs += file('build/generated/source/kaptKotlin/main')
-    }
-}
-
-kapt {
-    useBuildCache = false
-}
-
 dependencies {
-    kapt project(":asm:asm-processor")
-    compileOnly project(":asm:asm-processor")
     implementation "org.ow2.asm:asm:$asm"
     implementation "org.ow2.asm:asm-commons:$asm"
     implementation "org.ow2.asm:asm-util:$asm"
