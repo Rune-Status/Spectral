@@ -1,6 +1,8 @@
-package org.spectral.mapper
+package org.spectral.mapper.classifier
 
 interface Classifier<T> {
+
+    val levels: MutableList<ClassifierLevel>
 
     val name: String
 

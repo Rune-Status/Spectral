@@ -1,10 +1,11 @@
-package org.spectral.mapper
+package org.spectral.mapper.classifier
 
 import org.objectweb.asm.Type
 import org.spectral.asm.Class
 import org.spectral.asm.Field
 import org.spectral.asm.Matchable
 import org.spectral.asm.Method
+import org.spectral.mapper.RankResult
 import java.util.stream.Collectors
 import kotlin.math.abs
 import kotlin.math.max
@@ -91,7 +92,10 @@ object ClassifierUtil {
         if(returnClassA == null && returnClassB == null) return a.returnType.sort == b.returnType.sort
         if(returnClassA == null || returnClassB == null) return false
 
-        return isPotentiallyEqual(returnClassA, returnClassB)
+        return isPotentiallyEqual(
+            returnClassA,
+            returnClassB
+        )
     }
 
     /**
@@ -215,7 +219,11 @@ object ClassifierUtil {
      * @return Double
      */
     fun compareMethodSets(setA: MutableSet<Method>, setB: MutableSet<Method>): Double {
-        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+        return compareMatchableSets(
+            setA,
+            setB,
+            ClassifierUtil::isPotentiallyEqual
+        )
     }
 
     /**
@@ -226,7 +234,11 @@ object ClassifierUtil {
      * @return Double
      */
     fun compareFieldSets(setA: MutableSet<Field>, setB: MutableSet<Field>): Double {
-        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+        return compareMatchableSets(
+            setA,
+            setB,
+            ClassifierUtil::isPotentiallyEqual
+        )
     }
 
     /**
@@ -317,7 +329,13 @@ object ClassifierUtil {
         val ret = mutableListOf<RankResult<T>>()
 
         for(dst in dsts.toList().stream().collect(Collectors.toSet())) {
-            val result = rank(src, dst, classifiers, predicate, maxMismatch)
+            val result = rank(
+                src,
+                dst,
+                classifiers,
+                predicate,
+                maxMismatch
+            )
             if(result != null) {
                 ret.add(result)
             }

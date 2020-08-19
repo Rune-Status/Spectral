@@ -9,6 +9,8 @@ import org.spectral.asm.Field
 import org.spectral.asm.Method
 import org.spectral.common.coroutine.*
 import org.spectral.mapper.classifier.ClassClassifier
+import org.spectral.mapper.classifier.ClassifierLevel
+import org.spectral.mapper.classifier.ClassifierUtil
 import org.tinylog.kotlin.Logger
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -79,18 +81,16 @@ class Mapper(private val env: ClassEnvironment) {
          * If we were successful, match classes again as we may be able to
          *  match some hierarchy members in the second pass.
          */
-        if(matchClasses()) {
-            matchClasses()
+        if(matchClasses(ClassifierLevel.INITIAL)) {
+            matchClasses(ClassifierLevel.INITIAL)
         }
-
-
     }
 
     /**
      * Match [Class] objects
      * @return Boolean
      */
-    fun matchClasses(): Boolean {
+    fun matchClasses(level: ClassifierLevel): Boolean {
         /*
          * The mapped classes.
          */
@@ -107,7 +107,7 @@ class Mapper(private val env: ClassEnvironment) {
             .filter { !it.hasMatch() }
             .collect(Collectors.toSet())
 
-        val maxScore = ClassClassifier.maxScore
+        val maxScore = ClassClassifier.getMaxScore(level)
 
         val matches = hashMapOf<Class, Class>()
 
@@ -115,7 +115,7 @@ class Mapper(private val env: ClassEnvironment) {
          * Run the matching process
          */
         runParallel(classes) { cls ->
-            val ranking = ClassClassifier.rank(cls, cmpClasses.toTypedArray())
+            val ranking = ClassClassifier.rank(cls, cmpClasses.toTypedArray(), level)
 
             if(foundMatch(ranking, maxScore)) {
                 val match = ranking[0].subject

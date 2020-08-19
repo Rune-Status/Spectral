@@ -4,10 +4,7 @@ import org.objectweb.asm.Opcodes.*
 import org.spectral.asm.Class
 import org.spectral.asm.FeatureExtractor
 import org.spectral.asm.Method
-import org.spectral.mapper.AbstractClassifier
-import org.spectral.mapper.ClassifierUtil
 import org.spectral.mapper.RankResult
-import java.util.stream.Collectors
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -35,12 +32,12 @@ object ClassClassifier : AbstractClassifier<Class>() {
         addClassifier(inReferences, 6)
         addClassifier(stringConstants, 8)
         addClassifier(numericConstants, 6)
-        addClassifier(methodOutReferences, 5)
-        addClassifier(methodInReferences, 6)
+        addClassifier(methodOutReferences, 5, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
+        addClassifier(methodInReferences, 6, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
     }
 
-    override fun rank(src: Class, dsts: Array<Class>): List<RankResult<Class>> {
-        return ClassifierUtil.rank(src, dsts, classifiers, ClassifierUtil::isPotentiallyEqual, this.maxMismatch)
+    override fun rank(src: Class, dsts: Array<Class>, level: ClassifierLevel): List<RankResult<Class>> {
+        return ClassifierUtil.rank(src, dsts, getClassifiers(level), ClassifierUtil::isPotentiallyEqual, getMaxMismatch(level))
     }
 
     /**
