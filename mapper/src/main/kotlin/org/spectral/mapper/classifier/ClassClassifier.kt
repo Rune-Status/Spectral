@@ -2,6 +2,7 @@ package org.spectral.mapper.classifier
 
 import org.objectweb.asm.Opcodes.*
 import org.spectral.asm.Class
+import org.spectral.asm.FeatureExtractor
 import org.spectral.asm.Method
 import org.spectral.mapper.AbstractClassifier
 import org.spectral.mapper.ClassifierUtil
@@ -30,6 +31,12 @@ object ClassClassifier : AbstractClassifier<Class>() {
         addClassifier(fieldCount, 3)
         addClassifier(hierarchySiblings, 2)
         addClassifier(similarMethods, 10)
+        addClassifier(outReferences, 6)
+        addClassifier(inReferences, 6)
+        addClassifier(stringConstants, 8)
+        addClassifier(numericConstants, 6)
+        addClassifier(methodOutReferences, 5)
+        addClassifier(methodInReferences, 6)
     }
 
     override fun rank(src: Class, dsts: Array<Class>): List<RankResult<Class>> {
@@ -143,6 +150,114 @@ object ClassClassifier : AbstractClassifier<Class>() {
         }
 
         return@classifier totalScore / max(a.methods.size, b.methods.size)
+    }
+
+    /**
+     * String Constants
+     */
+    private val stringConstants = classifier("string constants") { a, b ->
+        return@classifier ClassifierUtil.compareSets(a.strings, b.strings)
+    }
+
+    /**
+     * Numeric Constants
+     */
+    private val numericConstants = classifier("numeric constants") { a, b ->
+        val intsA = hashSetOf<Int>()
+        val intsB = hashSetOf<Int>()
+        val longsA = hashSetOf<Long>()
+        val longsB = hashSetOf<Long>()
+        val floatsA = hashSetOf<Float>()
+        val floatsB = hashSetOf<Float>()
+        val doublesA = hashSetOf<Double>()
+        val doublesB = hashSetOf<Double>()
+
+        a.extractNumbers(intsA, longsA, floatsA, doublesA)
+        b.extractNumbers(intsB, longsB, floatsB, doublesB)
+
+        return@classifier (ClassifierUtil.compareSets(intsA, intsB)
+                + ClassifierUtil.compareSets(longsA, longsB)
+                + ClassifierUtil.compareSets(floatsA, floatsB)
+                + ClassifierUtil.compareSets(doublesA, doublesB)) / 4
+    }
+
+    /**
+     * Out References
+     */
+    private val outReferences = classifier("out references") { a, b ->
+        val refsA = a.outRefs
+        val refsB = b.outRefs
+
+        return@classifier ClassifierUtil.compareClassSets(refsA, refsB)
+    }
+
+    /**
+     * In References
+     */
+    private val inReferences = classifier("in references") { a, b ->
+        val refsA = a.inRefs
+        val refsB = b.inRefs
+
+        return@classifier ClassifierUtil.compareClassSets(refsA, refsB)
+    }
+
+    /**
+     * Method Out References
+     */
+    private val methodOutReferences = classifier("method out references") { a, b ->
+        val refsA = a.methodOutRefs
+        val refsB = b.methodOutRefs
+
+        return@classifier ClassifierUtil.compareMethodSets(refsA, refsB)
+    }
+
+    /**
+     * Method In References
+     */
+    private val methodInReferences = classifier("method in references") { a, b ->
+        val refsA = a.methodInRefs
+        val refsB = b.methodInRefs
+
+        return@classifier ClassifierUtil.compareMethodSets(refsA, refsB)
+    }
+
+    private val Class.outRefs: MutableSet<Class> get() {
+        val ret = hashSetOf<Class>()
+        this.methods.forEach { ret.addAll(it.classRefs) }
+        this.fields.forEach { it.group.find(it.type.className)?.apply { ret.add(this) } }
+        return ret
+    }
+
+    private val Class.inRefs: MutableSet<Class> get() {
+        val ret = hashSetOf<Class>()
+        this.methodTypeRefs.forEach { ret.add(it.owner) }
+        this.fieldTypeRefs.forEach { ret.add(it.owner) }
+        return ret
+    }
+
+    private val Class.methodOutRefs: MutableSet<Method> get() {
+        val ret = hashSetOf<Method>()
+        this.methods.forEach { ret.addAll(it.refsOut) }
+        return ret
+    }
+
+    private val Class.methodInRefs: MutableSet<Method> get() {
+        val ret = hashSetOf<Method>()
+        this.methods.forEach { ret.addAll(it.refsIn) }
+        return ret
+    }
+
+    private fun Class.extractNumbers(ints: MutableSet<Int>, longs: MutableSet<Long>, floats: MutableSet<Float>, doubles: MutableSet<Double>) {
+        this.methods.forEach {
+            if(!it.real) return@forEach
+            FeatureExtractor.extractNumbers(it.instructions.iterator(), ints, longs, floats, doubles)
+        }
+
+        this.fields.forEach {
+            if(!it.real) return@forEach
+            if(it.value == null) return@forEach
+            FeatureExtractor.handleNumberValue(it.value, ints,longs, floats, doubles)
+        }
     }
 
     private infix fun Int.pow(value: Int): Int {

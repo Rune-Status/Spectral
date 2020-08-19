@@ -265,15 +265,25 @@ class FeatureExtractor(val group: ClassGroup) {
                 val insn = it.next()
 
                 if(insn is LdcInsnNode) {
-                    when(insn.cst) {
-                        is Int -> ints.add(insn.cst as Int)
-                        is Long -> longs.add(insn.cst as Long)
-                        is Float -> floats.add(insn.cst as Float)
-                        is Double -> doubles.add(insn.cst as Double)
-                    }
+                    handleNumberValue(insn.cst, ints,longs,floats, doubles)
                 } else if(insn is IntInsnNode) {
                     ints.add(insn.operand)
                 }
+            }
+        }
+
+        fun handleNumberValue(
+            number: Any,
+            ints: MutableSet<Int>,
+            longs: MutableSet<Long>,
+            floats: MutableSet<Float>,
+            doubles: MutableSet<Double>
+        ) {
+            when(number) {
+                is Int -> ints.add(number)
+                is Long -> longs.add(number)
+                is Float -> floats.add(number)
+                is Double -> doubles.add(number)
             }
         }
     }

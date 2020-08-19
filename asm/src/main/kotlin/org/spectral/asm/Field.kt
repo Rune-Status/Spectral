@@ -12,7 +12,7 @@ class Field private constructor(
     val group: ClassGroup,
     val owner: Class,
     val node: FieldNode,
-    val read: Boolean
+    val real: Boolean
 ) : Matchable<Field>() {
 
     /**

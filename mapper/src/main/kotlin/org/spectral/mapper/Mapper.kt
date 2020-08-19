@@ -91,7 +91,6 @@ class Mapper(private val env: ClassEnvironment) {
      * @return Boolean
      */
     fun matchClasses(): Boolean {
-        Logger.info("Analyzing Classes...")
         /*
          * The mapped classes.
          */

@@ -44,7 +44,7 @@ class ClassGroup internal constructor(
     /**
      * The list of [Class] contained in this group.
      */
-    val classes = nodes.map { Class(this, it) }.toMutableSet()
+    val classes = nodes.map { Class(this, it) }.toHashSet()
 
     /**
      * Initializes the class group.

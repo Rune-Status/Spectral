@@ -48,7 +48,9 @@ object ClassifierUtil {
         if(a == b) return true
         if(a.match != null) return a.match == b
         if(b.match != null) return b.match == a
-        if(!isPotentiallyEqual(a.owner, b.owner)) return false
+        if(!a.isStatic && !b.isStatic) {
+            if(!isPotentiallyEqual(a.owner, b.owner)) return false
+        }
         if(!checkNameMatch(a.name, b.name)) return false
 
         return true
@@ -66,7 +68,9 @@ object ClassifierUtil {
         if(a == b) return true
         if(a.match != null) return a.match == b
         if(b.match != null) return b.match == a
-        if(!isPotentiallyEqual(a.owner, b.owner)) return false
+        if(!a.isStatic && !b.isStatic) {
+            if(!isPotentiallyEqual(a.owner, b.owner)) return false
+        }
         if(!checkNameMatch(a.name, b.name)) return false
 
         return true
