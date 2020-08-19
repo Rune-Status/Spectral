@@ -18,6 +18,8 @@ object MethodClassifier : AbstractClassifier<Method>() {
         addClassifier(methodTypeCheck, 10)
         addClassifier(accessFlags, 4)
         addClassifier(argumentTypes, 10)
+        addClassifier(returnType, 5)
+
     }
 
     /**
@@ -62,6 +64,16 @@ object MethodClassifier : AbstractClassifier<Method>() {
         val argTypesA = getArgumentTypes(a)
         val argTypesB = getArgumentTypes(b)
         return@classifier ClassifierUtil.compareClassSets(argTypesA.toHashSet(), argTypesB.toHashSet())
+    }
+
+    /**
+     * Return Type
+     */
+    private val returnType = classifier("return type") { a, b ->
+        val returnTypeA = a.group[a.type.returnType.className]
+        val returnTypeB = b.group[b.type.returnType.className]
+
+        return@classifier if(ClassifierUtil.isPotentiallyEqual(returnTypeA, returnTypeB)) 1.0 else 0.0
     }
 
     private fun getArgumentTypes(method: Method): Array<Class> {

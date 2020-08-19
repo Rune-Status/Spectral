@@ -118,7 +118,8 @@ class Mapper(val env: ClassEnvironment) {
             /*
              * Attempt to match normal methods.
              */
-            matchedAny = matchMethods(level, progress)
+            matchedAny = matchStaticMethods(level, progress)
+            matchedAny = matchedAny or matchMethods(level, progress)
 
             /*
              * If no methods where matched, break out of the loop.
