@@ -169,19 +169,18 @@ object ClassifierUtil {
      * @return Double
      */
     fun compareMethodSets(setA: MutableSet<Method>, setB: MutableSet<Method>): Double {
-        return compareMatchableSets(
-            setA,
-            setB,
-            ClassifierUtil::isPotentiallyEqual
-        )
+        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
     }
 
+    /**
+     * Compares two sets of [Field] objects.
+     *
+     * @param setA MutableSet<Field>
+     * @param setB MutableSet<Field>
+     * @return Double
+     */
     fun compareFieldSets(setA: MutableSet<Field>, setB: MutableSet<Field>): Double {
-        return compareMatchableSets(
-            setA,
-            setB,
-            ClassifierUtil::isPotentiallyEqual
-        )
+        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
     }
 
     /**
@@ -294,7 +293,7 @@ object ClassifierUtil {
             val weightedScore = cScore * weight
 
             mismatch += weight - weightedScore
-            if(mismatch >= maxMismatch) return null
+            //if(mismatch >= maxMismatch) return null
 
             score += weightedScore
             results.add(ClassifierResult(classifier, score))

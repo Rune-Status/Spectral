@@ -3,15 +3,13 @@ package org.spectral.mapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
-import me.tongfei.progressbar.ProgressBar
 import org.spectral.asm.Class
 import org.spectral.asm.ClassEnvironment
+import org.spectral.asm.Field
 import org.spectral.asm.Method
+import org.spectral.mapper.classifier.ClassClassifier
 import org.tinylog.kotlin.Logger
-import java.io.File
-import java.util.*
 import java.util.stream.Collectors
-import kotlin.math.max
 
 /**
  * The Spectral Mapper Object.
@@ -41,8 +39,6 @@ class Mapper(private val env: ClassEnvironment) {
      * Match all classes, methods, and fields.
      */
     fun matchAll() {
-        Logger.info("Attempting to match all elements...")
-
         /*
          * Initially match any classes we can.
          * If we were successful, match classes again as we may be able to
@@ -60,11 +56,12 @@ class Mapper(private val env: ClassEnvironment) {
      * @return Boolean
      */
     fun matchClasses(): Boolean {
-        Logger.info("Matching classes...")
+        Logger.info("Analyzing Classes...")
         /*
          * The mapped classes.
          */
         val classes = env.groupA.classes.stream()
+            .filter { it.real }
             .filter { !it.hasMatch() }
             .collect(Collectors.toSet())
 
@@ -72,11 +69,11 @@ class Mapper(private val env: ClassEnvironment) {
          * The unmapped classes to compare to.
          */
         val cmpClasses = env.groupB.classes.stream()
+            .filter { it.real }
             .filter { !it.hasMatch() }
             .collect(Collectors.toSet())
 
         val maxScore = ClassClassifier.maxScore
-        val maxMismatch = ClassClassifier.maxMismatch
 
         val matches = hashMapOf<Class, Class>()
 
@@ -124,7 +121,7 @@ class Mapper(private val env: ClassEnvironment) {
     fun match(a: Class, b: Class) {
         if(a.match == b) return
 
-        Logger.info("Mapped CLASS \t [$a] -> [$b]")
+        Logger.info("Matched \t\t CLASS [$a] -> [$b]")
 
         /*
          * Set the class matches to each other.
@@ -146,7 +143,32 @@ class Mapper(private val env: ClassEnvironment) {
                 }
             }
 
+            /*
+             * Match hierarchy members
+             */
+            val matchedSrc = src.overrides.firstOrNull { it.name == src.name && it.desc == src.desc } ?: continue
+            val dstHierarchyMembers = matchedSrc.match?.overrides ?: hashSetOf()
+            if(dstHierarchyMembers.isEmpty()) continue
 
+            for(dst in b.methods) {
+                if(dstHierarchyMembers.contains(dst)) {
+                    match(src, dst)
+                    break
+                }
+            }
+        }
+
+        /*
+         * Match fields together if they are not obfuscated.
+         */
+        for(src in a.fields) {
+            if(!ClassifierUtil.isObfuscatedName(src.name)) {
+                val dst = b.getField(src.name, src.desc)
+
+                if(dst != null && !ClassifierUtil.isObfuscatedName(dst.name)) {
+                    match(src, dst)
+                }
+            }
         }
     }
 
@@ -156,10 +178,39 @@ class Mapper(private val env: ClassEnvironment) {
      * @param a Method
      * @param b Method
      */
-    fun match(a: Method, b: Method) {
+    fun match(a: Method, b: Method, matchHierarchy: Boolean = true) {
         if(a.match == b) return
 
-        Logger.info("Mapped METHOD \t [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("Matched \t\t METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+
+        a.match = b
+        b.match = a
+
+        if(matchHierarchy) {
+            val srcHierarchyMembers = a.overrides
+            if(srcHierarchyMembers.isEmpty()) return
+
+            var dstHierarchyMembers: Set<Method>? = null
+
+            for(src in srcHierarchyMembers) {
+                if(src.hasMatch() || !src.owner.hasMatch() || !src.owner.real) continue
+
+                if(dstHierarchyMembers == null) dstHierarchyMembers = b.overrides
+
+                for(dst in src.owner.match!!.methods) {
+                    if(dstHierarchyMembers.contains(dst)) {
+                        match(src, dst, false)
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    fun match(a: Field, b: Field) {
+        if(a.match == b) return
+
+        Logger.info("Matched \t\t FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
 
         a.match = b
         b.match = a
@@ -240,6 +291,7 @@ class Mapper(private val env: ClassEnvironment) {
              * Command logic.
              */
             override fun run() {
+                Logger.info("Building class environment...")
                 /*
                  * Build the class environment.
                  */
