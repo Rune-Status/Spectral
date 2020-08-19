@@ -1,9 +1,12 @@
 package org.spectral.asm
 
+import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Opcodes.ASM8
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.MethodNode
 import org.spectral.asm.util.asm
+import java.util.ArrayDeque
 import java.util.stream.Collectors
 
 /**
@@ -82,7 +85,7 @@ class Class private constructor(
      * @param desc String
      * @return Method
      */
-    fun getMethod(name: String, desc: String): Method {
+    fun getOrCreateMethod(name: String, desc: String): Method {
         var method = methods.firstOrNull { it.name == name && it.desc == desc }
         if(method == null) {
             method = Method(group, this, name, desc)
@@ -92,7 +95,15 @@ class Class private constructor(
         return method
     }
 
-    fun getField(name: String, desc: String): Field {
+    /**
+     * Gets a field with a given name and descriptor. If one does not exist,
+     * a non-real (unknown) field is created.
+     *
+     * @param name String
+     * @param desc String
+     * @return Field
+     */
+    fun getOrCreateField(name: String, desc: String): Field {
         var field = fields.firstOrNull { it.name == name && it.desc == desc }
         if(field == null) {
             field = Field(group, this, name, desc)
@@ -102,8 +113,165 @@ class Class private constructor(
         return field
     }
 
+    fun getMethod(name: String, desc: String): Method? = methods.firstOrNull { it.name == name && it.desc == desc }
+
+    fun getField(name: String, desc: String): Field? = fields.firstOrNull { it.name == name && it.desc == desc }
+
+    /**
+     * Resolves a method from the current class or the closest jvm
+     * accepted override. If [toInterface] is true, the method resolves to the closest
+     * override from an interface implementation.
+     *
+     * @param name String
+     * @param desc String
+     * @param toInterface Boolean
+     * @return Method?
+     */
     fun resolveMethod(name: String, desc: String, toInterface: Boolean): Method? {
+        if(!toInterface) {
+            var ret = getMethod(name, desc)
+            if(ret != null) return ret
+
+            var cls: Class? = parent
+
+            while(cls != null) {
+                ret = cls.getMethod(name, desc)
+                if(ret != null) return ret
+
+                cls = cls.parent
+            }
+
+            return this.resolveInterfaceMethod(name, desc)
+        } else {
+            var ret = this.getMethod(name, desc)
+            if(ret != null) return ret
+
+            ret = this.parent.getMethod(name, desc)
+            if(ret != null && (ret.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC) == Opcodes.ACC_PUBLIC)) return ret
+
+            return this.resolveInterfaceMethod(name, desc)
+        }
+    }
+
+    /**
+     * Resolves a field from the current class or the closest jvm
+     * accepted override.
+     *
+     * @param name String
+     * @param desc String
+     * @return Field?
+     */
+    fun resolveField(name: String, desc: String): Field? {
+        var ret = this.getField(name, desc)
+        if(ret != null) return ret
+
+        if(this.interfaces.isNotEmpty()) {
+            val queue = ArrayDeque<Class>()
+            queue.addAll(this.interfaces)
+
+            var cls = queue.pollFirst()
+            while(cls != null) {
+                ret = cls.getField(name, desc)
+                if(ret != null) return ret
+
+                cls.interfaces.forEach {
+                    queue.addFirst(it)
+                }
+
+                cls = queue.pollFirst()
+            }
+        }
+
+        var cls: Class = this.parent
+        while(cls.real) {
+            ret = cls.getField(name, desc)
+            if(ret != null) return ret
+
+            cls = cls.parent
+        }
+
         return null
+    }
+
+    private fun resolveInterfaceMethod(name: String, desc: String): Method? {
+        val queue = ArrayDeque<Class>()
+        val queued = hashSetOf<Class>()
+
+        var cls = this.parent
+
+        while(cls.real) {
+            cls.interfaces.forEach {
+                if(queued.add(it)) queue.add(it)
+            }
+            cls = cls.parent
+        }
+
+        if(queue.isEmpty()) return null
+
+        val matches = hashSetOf<Method>()
+        var foundNonAbstract = false
+
+        cls = queue.poll()
+        while(cls.real) {
+            val ret = cls.getMethod(name, desc)
+            if(ret != null && (ret.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC) == 0)) {
+                matches.add(ret)
+
+                if((ret.access and Opcodes.ACC_ABSTRACT) == 0) {
+                    foundNonAbstract = true
+                }
+            }
+
+            cls.interfaces.forEach {
+                if(queued.add(it)) queue.add(it)
+            }
+
+            cls = queue.poll()
+        }
+
+        if(matches.isEmpty()) return null
+        if(matches.size == 1) return matches.iterator().next()
+
+        if(foundNonAbstract) {
+            val it = matches.iterator()
+            while(it.hasNext()) {
+                val m = it.next()
+
+                if((m.access and Opcodes.ACC_ABSTRACT) != 0) {
+                    it.remove()
+                }
+            }
+
+            if(matches.size == 1) return matches.iterator().next()
+        }
+
+        val it = matches.iterator()
+        while(it.hasNext()) {
+            val m = it.next()
+            cmpLoop@ for(m2 in matches) {
+                if(m2 == m) continue
+
+                if(m2.owner.interfaces.contains(m.owner)) {
+                    it.remove()
+                    break
+                }
+
+                queue.addAll(m2.owner.interfaces)
+
+                cls = queue.poll()
+                while(cls.real) {
+                    if(cls.interfaces.contains(m.owner)) {
+                        it.remove()
+                        queue.clear()
+                        break@cmpLoop
+                    }
+
+                    cls = queue.poll()
+                }
+            }
+        }
+
+        return matches.iterator().next()
     }
 
     override fun toString(): String {

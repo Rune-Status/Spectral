@@ -13,7 +13,7 @@ class Field private constructor(
     val owner: Class,
     val node: FieldNode,
     val read: Boolean
-){
+) : Matchable<Field>() {
 
     /**
      * Creates a real (known) field.
@@ -37,6 +37,7 @@ class Field private constructor(
     constructor(group: ClassGroup, owner: Class, name: String, desc: String) : this(group, owner, DEFAULT_FIELD_NODE, false) {
         this.name = name
         this.desc = desc
+        this.match = this
     }
 
     var name by asm(node::name)

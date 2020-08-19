@@ -14,7 +14,7 @@ class Method private constructor(
     val owner: Class,
     val node: MethodNode,
     val real: Boolean
-){
+) : Matchable<Method>() {
 
     /**
      * Create a real (known) method.
@@ -39,6 +39,7 @@ class Method private constructor(
         this.name = name
         this.desc = desc
         this.access = 0
+        this.match = this
     }
 
     var name: String by asm(node::name)
