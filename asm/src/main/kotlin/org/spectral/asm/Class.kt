@@ -45,7 +45,7 @@ class Class private constructor(
         this.match = this
     }
 
-    var name: String by asm(node::name)
+    override var name: String by asm(node::name)
 
     var parentName: String by asm(node::superName)
 

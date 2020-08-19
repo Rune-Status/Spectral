@@ -9,6 +9,8 @@ package org.spectral.asm
  */
 abstract class Matchable<T> {
 
+    abstract val name: String
+
     /**
      * The matched object.
      */

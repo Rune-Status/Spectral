@@ -43,7 +43,7 @@ class Field private constructor(
         owner.fieldTypeRefs.add(this)
     }
 
-    var name by asm(node::name)
+    override var name by asm(node::name)
 
     var desc by asm(node::desc)
 

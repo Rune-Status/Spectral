@@ -4,6 +4,8 @@ import org.spectral.asm.Class
 import org.spectral.asm.Field
 import org.spectral.asm.Matchable
 import org.spectral.asm.Method
+import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * Holds utility methods for comparing how similar elements are
@@ -94,5 +96,157 @@ object ClassifierUtil {
     fun isObfuscatedName(name: String): Boolean {
         return (name.length <= 2 || (name.length == 3 && name.startsWith("aa")))
                 || (name.startsWith("class") || name.startsWith("method") || name.startsWith("field"))
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////
+    // SCORING UTILITY METHODS
+    //
+    // These methods are all designed to score similarity between matchable elements.
+    //
+    // The method scoring is based on a "sigmoid" function meaning their outputs are all between
+    // -1.0 and 1.0 with a sigmoid curve=0 at 0.0
+    ////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Compares and scores two counts / integers.
+     *
+     * @param a Int
+     * @param b Int
+     * @return Double
+     */
+    fun compareCounts(a: Int, b: Int): Double {
+        val delta = abs(a - b)
+        if(delta == 0) return 1.0
+
+        return (1 - delta / max(a, b)).toDouble()
+    }
+
+    /**
+     * Compares two mutable sets of elements with a matching type.
+     *
+     * @param a MutableSet<T>
+     * @param b MutableSet<T>
+     * @return Double
+     */
+    fun <T> compareSets(a: MutableSet<T>, b: MutableSet<T>): Double {
+        val copyB = mutableSetOf<T>().apply { this.addAll(b) }
+
+        val oldSize = b.size
+        copyB.removeAll(a)
+
+        val matched = oldSize - b.size
+        val total = a.size - matched + oldSize
+
+        return if(total == 0) 1.0 else (matched / total).toDouble()
+    }
+
+    /**
+     * Compares two sets of [Class] objects.
+     *
+     * @param setA MutableSet<Class>
+     * @param setB MutableSet<Class>
+     * @return Double
+     */
+    fun compareClassSets(setA: MutableSet<Class>, setB: MutableSet<Class>): Double {
+        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+    }
+
+    /**
+     * Compares two sets of [Method] objects.
+     *
+     * @param setA MutableSet<Method>
+     * @param setB MutableSet<Method>
+     * @return Double
+     */
+    fun compareMethodSets(setA: MutableSet<Method>, setB: MutableSet<Method>): Double {
+        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+    }
+
+    fun compareFieldSets(setA: MutableSet<Field>, setB: MutableSet<Field>): Double {
+        return compareMatchableSets(setA, setB, ClassifierUtil::isPotentiallyEqual)
+    }
+
+    /**
+     * Compares two sets both of a [Matchable] type.
+     *
+     * @param a MutableSet<T>
+     * @param b MutableSet<T>
+     * @param predicate Function2<T, T, Boolean>
+     * @return Double
+     */
+    private fun <T : Matchable<T>> compareMatchableSets(sa: MutableSet<T>, sb: MutableSet<T>, predicate: (T, T) -> Boolean): Double {
+        if(sa.isEmpty() || sb.isEmpty()) {
+            return if(sa.isEmpty() && sb.isEmpty()) 1.0 else 0.0
+        }
+
+        val setA = mutableSetOf<T>().apply { this.addAll(sa) }
+        val setB = mutableSetOf<T>().apply { this.addAll(sb) }
+
+        val total = setA.size + setB.size
+        var unmatched = 0
+
+        val itA = setA.iterator()
+        while(itA.hasNext()) {
+            val a = itA.next()
+
+            if(setB.remove(a)) {
+                itA.remove()
+            } else if(a.match != null) {
+                if(!setB.remove(a.match!!)) {
+                    unmatched++
+                }
+
+                itA.remove()
+            } else if(!isObfuscatedName(a.name)) {
+                unmatched++
+                itA.remove()
+            }
+        }
+
+        val itB = setB.iterator()
+        while(itB.hasNext()) {
+            val b = itB.next()
+
+            if(!isObfuscatedName(b.name)) {
+                unmatched++
+                itB.remove()
+            }
+        }
+
+        val itC = setA.iterator()
+        while(itC.hasNext()) {
+            val a = itC.next()
+
+            var found = false
+
+            for(b in setB) {
+                if(predicate(a, b)) {
+                    found = true
+                    break
+                }
+            }
+
+            if(!found) {
+                unmatched++
+                itC.remove()
+            }
+        }
+
+        for(b in setB) {
+            var found = false
+
+            for(a in setA) {
+                if(predicate(a, b)) {
+                    found = true
+                    break
+                }
+            }
+
+            if(!found) {
+                unmatched++
+            }
+        }
+
+        return ((total - unmatched) / total).toDouble()
     }
 }
