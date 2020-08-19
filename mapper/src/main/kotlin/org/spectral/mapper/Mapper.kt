@@ -3,6 +3,7 @@ package org.spectral.mapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
+import me.tongfei.progressbar.*
 import org.spectral.asm.Class
 import org.spectral.asm.ClassEnvironment
 import org.spectral.asm.Field
@@ -12,6 +13,7 @@ import org.spectral.mapper.classifier.ClassClassifier
 import org.spectral.mapper.classifier.ClassifierLevel
 import org.spectral.mapper.classifier.ClassifierUtil
 import org.tinylog.kotlin.Logger
+import java.text.DecimalFormat
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Collectors
@@ -32,7 +34,7 @@ class Mapper(private val env: ClassEnvironment) {
      * Initialize the mapper.
      */
     fun init() {
-        Logger.info("Initializing mapper...")
+        Logger.info("Analyzing class environment...")
 
         /*
          * Initialize the classifiers.
@@ -47,7 +49,7 @@ class Mapper(private val env: ClassEnvironment) {
      * @param set Set<T>
      * @param action Function1<T, Unit>
      */
-    private fun <T> runParallel(set: Set<T>, action: (T) -> Unit) {
+    private fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
         val availableThreads = Runtime.getRuntime().availableProcessors()
 
         runBlocking(CommonPool) {
@@ -59,6 +61,7 @@ class Mapper(private val env: ClassEnvironment) {
              */
             set.stream().collect(Collectors.toSet()).forEach {
                 val future = future(threadPool) {
+                    progress.step()
                     action(it)
                 }
 
@@ -68,21 +71,23 @@ class Mapper(private val env: ClassEnvironment) {
             /*
              * Run and await for each job from the queue to complete.
              */
-            taskQueue.forEach { it.await() }
+            taskQueue.forEach {
+                it.await()
+            }
         }
     }
 
     /**
      * Match all classes, methods, and fields.
      */
-    fun matchAll() {
+    fun matchAll(progress: ProgressBar) {
         /*
          * Initially match any classes we can.
          * If we were successful, match classes again as we may be able to
          *  match some hierarchy members in the second pass.
          */
-        if(matchClasses(ClassifierLevel.INITIAL)) {
-            matchClasses(ClassifierLevel.INITIAL)
+        if(matchClasses(ClassifierLevel.INITIAL, progress)) {
+            matchClasses(ClassifierLevel.INITIAL, progress)
         }
     }
 
@@ -90,7 +95,8 @@ class Mapper(private val env: ClassEnvironment) {
      * Match [Class] objects
      * @return Boolean
      */
-    fun matchClasses(level: ClassifierLevel): Boolean {
+    fun matchClasses(level: ClassifierLevel, progress: ProgressBar): Boolean {
+
         /*
          * The mapped classes.
          */
@@ -107,6 +113,9 @@ class Mapper(private val env: ClassEnvironment) {
             .filter { !it.hasMatch() }
             .collect(Collectors.toSet())
 
+        progress.extraMessage = "Classifying Classes"
+        progress.maxHint(progress.current + classes.size.toLong())
+
         val maxScore = ClassClassifier.getMaxScore(level)
 
         val matches = hashMapOf<Class, Class>()
@@ -114,7 +123,7 @@ class Mapper(private val env: ClassEnvironment) {
         /*
          * Run the matching process
          */
-        runParallel(classes) { cls ->
+        runParallel(classes, progress) { cls ->
             val ranking = ClassClassifier.rank(cls, cmpClasses.toTypedArray(), level)
 
             if(foundMatch(ranking, maxScore)) {
@@ -338,9 +347,25 @@ class Mapper(private val env: ClassEnvironment) {
                 mapper.init()
 
                 /*
+                 * Progress bar
+                 */
+                val progress = ProgressBarBuilder()
+                    .setTaskName("Matching")
+                    .setStyle(ProgressBarStyle.UNICODE_BLOCK)
+                    .setUpdateIntervalMillis(100)
+                    .build()
+
+                /*
                  * Match all.
                  */
-                mapper.matchAll()
+                try {
+                    mapper.matchAll(progress)
+                } catch(e : Exception) {
+                    e.printStackTrace()
+                    progress.close()
+                } finally {
+                    progress.close()
+                }
             }
 
         }.main(args)
