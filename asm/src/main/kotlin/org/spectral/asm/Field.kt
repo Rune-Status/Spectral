@@ -23,7 +23,9 @@ class Field private constructor(
      * @param node FieldNode
      * @constructor
      */
-    constructor(group: ClassGroup, owner: Class, node: FieldNode) : this(group, owner, node, true)
+    constructor(group: ClassGroup, owner: Class, node: FieldNode) : this(group, owner, node, true) {
+        owner.fieldTypeRefs.add(this)
+    }
 
     /**
      * Creates a non real (unknown) field.
@@ -38,6 +40,7 @@ class Field private constructor(
         this.name = name
         this.desc = desc
         this.match = this
+        owner.fieldTypeRefs.add(this)
     }
 
     var name by asm(node::name)

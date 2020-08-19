@@ -1,10 +1,10 @@
 package org.spectral.asm
 
 import org.jgrapht.traverse.DepthFirstIterator
+import org.objectweb.asm.Opcodes.*
 import org.objectweb.asm.Type
-import org.objectweb.asm.tree.AbstractInsnNode
-import org.objectweb.asm.tree.IntInsnNode
-import org.objectweb.asm.tree.LdcInsnNode
+import org.objectweb.asm.tree.*
+import org.objectweb.asm.tree.AbstractInsnNode.*
 import java.lang.reflect.Modifier
 import java.util.stream.Collectors
 
@@ -40,7 +40,7 @@ class FeatureExtractor(val group: ClassGroup) {
          * Build the inheritors
          */
         cls.parent = group[cls.parentName]
-        cls.parent.children.add(cls)
+        cls.parent?.children?.add(cls)
 
         cls.interfaceNames.forEach {
             cls.interfaces.add(group[it])
@@ -76,7 +76,7 @@ class FeatureExtractor(val group: ClassGroup) {
          */
 
         // class parent edges.
-        if(cls.real && cls.parent.real) {
+        if(cls.real && cls.parent!!.real) {
             cls.group.hierarchyGraph.addEdge(cls, cls.parent)
         }
 
@@ -136,7 +136,7 @@ class FeatureExtractor(val group: ClassGroup) {
             f.overrides.addAll(fieldOverrides.sortedWith(comparator))
         }
 
-        cls.methods.forEach { m ->
+        cls.methods.stream().collect(Collectors.toSet()).forEach { m ->
             /*
              * Process method instructions
              */
@@ -150,11 +150,79 @@ class FeatureExtractor(val group: ClassGroup) {
      * @param method Method
      */
     private fun processMethodInsns(method: Method) {
+        if(!method.real) {
+            return
+        }
 
+        val it = method.instructions.iterator()
+        while(it.hasNext()) {
+            val insn = it.next()
+
+            when(insn.type) {
+                /*
+                 * Method invocation instruction
+                 */
+                METHOD_INSN -> {
+                    val ins = insn as MethodInsnNode
+                    handleMethodInvocation(method, ins.owner, ins.name, ins.desc,
+                        (ins.itf || ins.opcode != INVOKEINTERFACE))
+                }
+
+                /*
+                 * Field read / write instruction
+                 */
+                FIELD_INSN -> {
+                    val ins = insn as FieldInsnNode
+                    val owner = group[ins.owner]
+                    var dst = owner.resolveField(ins.name, ins.desc)
+
+                    if(dst == null) {
+                        dst = Field(group, owner, ins.name, ins.desc)
+                        owner.fields.add(dst)
+                    }
+
+                    /*
+                     * Determine if the field instruction was a read or write.
+                     */
+                    if(ins.opcode == GETSTATIC || ins.opcode == GETFIELD) {
+                        dst.readRefs.add(method)
+                        method.fieldReadRefs.add(dst)
+                    } else {
+                        dst.writeRefs.add(method)
+                        method.fieldWriteRefs.add(dst)
+                    }
+
+                    dst.owner.methodTypeRefs.add(method)
+                    method.classRefs.add(dst.owner)
+                }
+
+                /*
+                 * Type instruction
+                 */
+                TYPE_INSN -> {
+                    val ins = insn as TypeInsnNode
+                    val dst = group[ins.desc]
+
+                    dst.methodTypeRefs.add(method)
+                    method.classRefs.add(dst)
+                }
+            }
+        }
     }
 
     private fun handleMethodInvocation(method: Method, rawOwner: String, name: String, desc: String, toInterface: Boolean) {
-        val owner = group[Type.getType(rawOwner).internalName]
+        val owner = group[rawOwner]
+        var dst = owner.resolveMethod(name, desc, toInterface)
+
+        if(dst == null) {
+            dst = Method(method.group, owner, name, desc)
+            owner.methods.add(dst)
+        }
+
+        dst.refsIn.add(method)
+        method.refsOut.add(dst)
+        dst.owner.methodTypeRefs.add(method)
+        method.classRefs.add(dst.owner)
     }
 
     companion object {

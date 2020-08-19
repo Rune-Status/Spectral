@@ -55,11 +55,11 @@ class Class private constructor(
 
     val type get() = Type.getObjectType(name)
 
-    lateinit var methods: MutableSet<Method>
+    var methods: MutableSet<Method> = mutableListOf<Method>().stream().collect(Collectors.toSet())
 
-    lateinit var fields: MutableSet<Field>
+    var fields: MutableSet<Field> = mutableListOf<Field>().stream().collect(Collectors.toSet())
 
-    lateinit var parent: Class
+    var parent: Class? = null
 
     val children = hashSetOf<Class>()
 
@@ -146,7 +146,7 @@ class Class private constructor(
             var ret = this.getMethod(name, desc)
             if(ret != null) return ret
 
-            ret = this.parent.getMethod(name, desc)
+            ret = this.parent?.getMethod(name, desc)
             if(ret != null && (ret.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC) == Opcodes.ACC_PUBLIC)) return ret
 
             return this.resolveInterfaceMethod(name, desc)
@@ -182,8 +182,8 @@ class Class private constructor(
             }
         }
 
-        var cls: Class = this.parent
-        while(cls.real) {
+        var cls: Class? = this.parent
+        while(cls != null) {
             ret = cls.getField(name, desc)
             if(ret != null) return ret
 
@@ -199,7 +199,7 @@ class Class private constructor(
 
         var cls = this.parent
 
-        while(cls.real) {
+        while(cls != null) {
             cls.interfaces.forEach {
                 if(queued.add(it)) queue.add(it)
             }
@@ -212,7 +212,7 @@ class Class private constructor(
         var foundNonAbstract = false
 
         cls = queue.poll()
-        while(cls.real) {
+        while(cls != null) {
             val ret = cls.getMethod(name, desc)
             if(ret != null && (ret.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC) == 0)) {
                 matches.add(ret)
@@ -259,7 +259,7 @@ class Class private constructor(
                 queue.addAll(m2.owner.interfaces)
 
                 cls = queue.poll()
-                while(cls.real) {
+                while(cls != null) {
                     if(cls.interfaces.contains(m.owner)) {
                         it.remove()
                         queue.clear()
