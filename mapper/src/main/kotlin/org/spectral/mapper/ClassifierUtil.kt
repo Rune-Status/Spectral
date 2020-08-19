@@ -1,5 +1,6 @@
 package org.spectral.mapper
 
+import org.objectweb.asm.Type
 import org.spectral.asm.Class
 import org.spectral.asm.Field
 import org.spectral.asm.Matchable
@@ -66,6 +67,43 @@ object ClassifierUtil {
         if(b.match != null) return b.match == a
         if(!isPotentiallyEqual(a.owner, b.owner)) return false
         if(!checkNameMatch(a.name, b.name)) return false
+
+        return true
+    }
+
+    /**
+     * Gets whether two give return [Type] objects from two [Method] objects are
+     * potentially match candidates.
+     *
+     * @param a Method
+     * @param b Method
+     * @return Boolean
+     */
+    fun isReturnTypesPotentiallyEqual(a: Method, b: Method): Boolean {
+        val returnClassA = a.group[a.returnType.className]
+        val returnClassB = b.group[b.returnType.className]
+
+        return isPotentiallyEqual(returnClassA, returnClassB)
+    }
+
+    /**
+     * Gets whether two given argument [Type] lists from two [Method] objects
+     * are all potential match candidates.
+     *
+     * @param a Method
+     * @param b Method
+     * @return Boolean
+     */
+    fun isArgTypesPotentiallyEqual(a: Method, b: Method): Boolean {
+        val argTypesA = a.argumentTypes.map { a.group[it.className] }
+        val argTypesB = b.argumentTypes.map { b.group[it.className] }
+
+        for(i in argTypesA.indices) {
+            if(i >= argTypesB.size) return false
+            val argA = argTypesA[i]
+            val argB = argTypesB[i]
+            if(!isPotentiallyEqual(argA, argB)) return false
+        }
 
         return true
     }

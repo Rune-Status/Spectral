@@ -2,9 +2,11 @@ package org.spectral.mapper.classifier
 
 import org.objectweb.asm.Opcodes.*
 import org.spectral.asm.Class
+import org.spectral.asm.Method
 import org.spectral.mapper.AbstractClassifier
 import org.spectral.mapper.ClassifierUtil
 import org.spectral.mapper.RankResult
+import kotlin.math.max
 import kotlin.math.pow
 
 /**
@@ -26,6 +28,7 @@ object ClassClassifier : AbstractClassifier<Class>() {
         addClassifier(methodCount, 3)
         addClassifier(fieldCount, 3)
         addClassifier(hierarchySiblings, 2)
+        addClassifier(similarMethods, 10)
     }
 
     override fun rank(src: Class, dsts: Array<Class>): List<RankResult<Class>> {
@@ -100,6 +103,45 @@ object ClassClassifier : AbstractClassifier<Class>() {
      */
     private val fieldCount = classifier("field count") { a, b ->
         return@classifier ClassifierUtil.compareCounts(a.fields.size, b.fields.size)
+    }
+
+    /**
+     * Similar Methods
+     */
+    private val similarMethods = classifier("similar methods") { a, b ->
+        if(a.methods.isEmpty() && b.methods.isEmpty()) return@classifier 1.0
+        if(a.methods.isEmpty() || b.methods.isEmpty()) return@classifier 0.0
+
+        val methodsB = hashSetOf<Method>().apply { this.addAll(b.methods) }
+        var totalScore = 0.0
+        var bestMatch: Method? = null
+        var bestScore = 0.0
+
+        for(methodA in a.methods) {
+            loopB@ for(methodB in methodsB) {
+                if(!ClassifierUtil.isPotentiallyEqual(methodA, methodB)) continue
+                if(!ClassifierUtil.isReturnTypesPotentiallyEqual(methodA, methodB)) continue
+                if(!ClassifierUtil.isArgTypesPotentiallyEqual(methodA, methodB)) continue@loopB
+
+                val score: Double = if(methodA.real || methodB.real) {
+                    if(methodA.real && methodB.real) 1.0 else 0.0
+                } else {
+                    ClassifierUtil.compareCounts(methodA.instructions.size(), methodB.instructions.size())
+                }
+
+                if(score > bestScore) {
+                    bestScore = score
+                    bestMatch = methodB
+                }
+            }
+
+            if(bestMatch != null) {
+                totalScore += bestScore
+                methodsB.remove(bestMatch)
+            }
+        }
+
+        return@classifier totalScore / max(a.methods.size, b.methods.size)
     }
 
     private infix fun Int.pow(value: Int): Int {
