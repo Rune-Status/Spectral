@@ -1,115 +1,99 @@
 package org.spectral.asm
 
-import org.jgrapht.graph.DefaultEdge
-import org.jgrapht.graph.DirectedMultigraph
-import org.objectweb.asm.ClassReader
+import org.jgrapht.graph.*
 import org.objectweb.asm.tree.ClassNode
-import java.io.File
-import java.util.jar.JarFile
+import java.util.stream.Collectors
 
 /**
- * Represents a group of classes from a class path.
+ * Represents a collection of [Class] objects from a
+ * single class path.
  *
+ * @property classes Collection<ClassNode>
  * @constructor
  */
-class ClassGroup() : MutableList<Class> by mutableListOf() {
+class ClassGroup internal constructor(
+    val env: ClassEnvironment?,
+    nodes: Collection<ClassNode>
+) {
 
     /**
-     * The class group hierarchy graph data model.
+     * Creates an empty class group without any environment.
      *
-     * This data model has each class as a vertex and a edge between all the classes
-     * which it extends or implements.
-     */
-    val hierarchyGraph = DirectedMultigraph<Class, DefaultEdge>(DefaultEdge::class.java)
-
-    /**
-     * Creates a class group with added [ClassNode] objects
-     *
-     * @param nodes The nodes to add
      * @constructor
      */
-    private constructor(nodes: Collection<ClassNode>) : this() {
-        nodes.forEach {
-            val cls = Class(this, it)
-            this.add(cls)
-        }
+    constructor() : this(null, mutableListOf())
 
-        this.process()
+    /**
+     * Creates an empty class group with a specified environment.
+     *
+     * @param env ClassEnvironment
+     * @constructor
+     */
+    constructor(env: ClassEnvironment) : this(env, mutableListOf())
+
+    /**
+     * The feature extractor instance.
+     */
+    private val extractor = FeatureExtractor(this)
+
+    /**
+     * The hierarchy graph for the class group.
+     */
+    internal val hierarchyGraph = DefaultDirectedGraph<Class, DefaultEdge>(DefaultEdge::class.java)
+
+    /**
+     * The list of [Class] contained in this group.
+     */
+    val classes = nodes.map { Class(this, it) }.toHashSet()
+
+    /**
+     * Initializes the class group.
+     */
+    fun init() {
+        classes.filter { it.real }.forEach { hierarchyGraph.addVertex(it) }
+
+        extractor.process()
     }
 
     /**
-     * Processes anything required for the class group
-     * object after nodes have been added.
+     * Adds a class to the group.
+     *
+     * @param element Class
+     * @return Boolean
      */
-    fun process() {
-        /*
-         * Build the class parent and interface hierarchy
-         */
-        this.forEach { c ->
-            c.parent = this[c.node.superName]
-            if(c.parent != null) {
-                c.parent!!.children.add(c)
-            }
-
-            c.node.interfaces.forEach { i ->
-                if(this[i] != null) {
-                    c.interfaces.add(this[i]!!)
-                    this[i]!!.implementers.add(c)
-                }
-            }
-        }
-
-        /*
-         * Build the class hierarchy graph.
-         */
-        this.forEach { c ->
-            hierarchyGraph.addVertex(c)
-        }
-
-        /*
-         * Add the hierarchy graph edges.
-         */
-        this.forEach { c ->
-            if(c.parent != null) {
-                hierarchyGraph.addEdge(c, c.parent)
-            }
-
-            c.interfaces.forEach { i ->
-                hierarchyGraph.addEdge(c, i)
-            }
-        }
-
-        /*
-         * Process each class.
-         */
-        this.forEach { it.process() }
-
+    fun add(element: Class): Boolean {
+        return classes.add(element)
     }
 
-    operator fun get(name: String): Class? = this.firstOrNull { it.node.name == name }
-
-    companion object {
-        /**
-         * Create a [ClassGroup] object from the classes within a JAR file
-         *
-         * @param file The jar file to load.
-         * @return The [ClassGroup] object with the jar entries loaded.
-         */
-        fun fromJar(file: File): ClassGroup {
-            val nodes = mutableListOf<ClassNode>()
-
-            JarFile(file).use { jar ->
-                jar.entries().asSequence()
-                    .filter { it.name.endsWith(".class") }
-                    .forEach {
-                        val node = ClassNode()
-                        val reader = ClassReader(jar.getInputStream(it))
-                        reader.accept(node, ClassReader.SKIP_FRAMES)
-                        nodes.add(node)
-                    }
-            }
-
-            return ClassGroup(nodes)
-        }
+    /**
+     * Execution a [Unit] for each element in the group.
+     *
+     * @param action Function1<Class, Unit>
+     */
+    fun forEach(action: (Class) -> Unit) {
+        classes.stream().collect(Collectors.toSet()).forEach { action(it) }
     }
+
+    /**
+     * Gets a [Class] from the group for a given name.
+     * If no class in the [ClassGroup] exists with the given name,
+     * a non real entry is created.
+     *
+     * If the environment is present, the created class is added as a shared class.
+     *
+     * @param name String
+     * @return Class?
+     */
+    operator fun get(name: String): Class {
+        var cls: Class? = classes.firstOrNull { it.name == name }
+
+        if(cls == null) {
+            cls = Class(this, name)
+            env?.addSharedClass(cls) ?: this.add(cls)
+        }
+
+        return cls
+    }
+
+    fun find(name: String): Class? = classes.firstOrNull { it.name == name }
 }

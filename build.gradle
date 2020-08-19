@@ -21,6 +21,7 @@ allprojects {
 
     dependencies {
         implementation "org.jetbrains.kotlin:kotlin-stdlib"
+        implementation "org.jetbrains.kotlin:kotlin-reflect"
         implementation "org.tinylog:tinylog-api-kotlin:$tinylog"
         implementation "org.tinylog:tinylog-impl:$tinylog"
         implementation "com.google.guava:guava:$guava"
