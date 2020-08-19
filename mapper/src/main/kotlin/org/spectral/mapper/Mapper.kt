@@ -4,18 +4,13 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
 import me.tongfei.progressbar.*
-import org.spectral.asm.Class
-import org.spectral.asm.ClassEnvironment
-import org.spectral.asm.Field
-import org.spectral.asm.Method
+import org.spectral.asm.*
 import org.spectral.common.coroutine.*
-import org.spectral.mapper.classifier.ClassClassifier
-import org.spectral.mapper.classifier.ClassifierLevel
-import org.spectral.mapper.classifier.ClassifierUtil
+import org.spectral.mapper.classifier.*
 import org.tinylog.kotlin.Logger
-import java.text.DecimalFormat
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.Collectors
 
 /**
@@ -40,6 +35,7 @@ class Mapper(private val env: ClassEnvironment) {
          * Initialize the classifiers.
          */
         ClassClassifier.init()
+        MethodClassifier.init()
     }
 
     /**
@@ -80,7 +76,7 @@ class Mapper(private val env: ClassEnvironment) {
     /**
      * Match all classes, methods, and fields.
      */
-    fun matchAll(progress: ProgressBar) {
+    fun run(progress: ProgressBar) {
         /*
          * Initially match any classes we can.
          * If we were successful, match classes again as we may be able to
@@ -89,6 +85,64 @@ class Mapper(private val env: ClassEnvironment) {
         if(matchClasses(ClassifierLevel.INITIAL, progress)) {
             matchClasses(ClassifierLevel.INITIAL, progress)
         }
+
+        /*
+         * Match each classifier level recursively.
+         */
+        matchLevel(ClassifierLevel.INITIAL, progress)
+        matchLevel(ClassifierLevel.SECONDARY, progress)
+        matchLevel(ClassifierLevel.TERTIARY, progress)
+        matchLevel(ClassifierLevel.EXTRA,progress)
+
+        /*
+         * Print out the matching results.
+         */
+        val totalClasses = env.groupA.classes.filter { it.real }.size
+        val matchedClasses = env.groupA.classes.filter { it.real && it.hasMatch() }.size
+
+        val totalMethods = env.groupA.classes.filter { it.real }.flatMap { it.methods }.filter { it.real }.size
+        val matchedMethods = env.groupA.classes.filter { it.real }.flatMap { it.methods }.filter { it.real && it.hasMatch() }.size
+
+        val totalFields = env.groupA.classes.filter { it.real }.flatMap { it.fields }.filter { it.real }.size
+        val matchedFields = env.groupA.classes.filter { it.real }.flatMap { it.fields }.filter { it.real && it.hasMatch() }.size
+
+        println("==========================================================")
+        println("Classes: \t $matchedClasses / $totalClasses (${(matchedClasses.toDouble() / totalClasses.toDouble()) * 100.0}%)")
+        println("Methods: \t $matchedMethods / $totalMethods (${(matchedMethods.toDouble() / totalMethods.toDouble()) * 100.0}%)")
+        println("Fields: \t $matchedFields / $totalFields (${(matchedFields.toDouble() / totalFields.toDouble()) * 100.0}%)")
+        println("==========================================================")
+    }
+
+    /**
+     * Matches classes, methods, and fields in order and continues to do so until no
+     * new matches are made for any.
+     */
+    private fun matchLevel(level: ClassifierLevel, progress: ProgressBar) {
+
+        var matchedAny: Boolean
+        var matchedClassesBefore = true
+
+        do {
+            /*
+             * Attempt to match normal methods.
+             */
+            matchedAny = matchMethods(level, progress)
+
+            /*
+             * If no methods where matched, break out of the loop.
+             */
+            if(!matchedAny && !matchedClassesBefore) {
+                break
+            }
+
+            /*
+             * Match any classes which we can now from the matched methods from
+             * the last cycle.
+             */
+            matchedClassesBefore = matchClasses(level, progress)
+            matchedAny = matchedAny or matchedClassesBefore
+
+        } while(matchedAny)
     }
 
     /**
@@ -147,12 +201,61 @@ class Mapper(private val env: ClassEnvironment) {
         return matches.isNotEmpty()
     }
 
-    /**
-     * Matches classes, methods, and fields in order and continues to do so until no
-     * new matches are made for any.
-     */
-    private fun matchAllRecursively() {
+    fun matchMethods(level: ClassifierLevel, progress: ProgressBar): Boolean {
+        val totalUnmatched = AtomicInteger()
 
+        progress.extraMessage = "Classifying Methods"
+        val matches = classify(level, { it.methods.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
+
+        matches.forEach { (t, u) ->
+            match(t, u)
+        }
+
+        return matches.isNotEmpty()
+    }
+
+    fun <T : Matchable<T>> classify(
+        level: ClassifierLevel,
+        elements: (Class) -> Array<T>,
+        classifier: AbstractClassifier<T>,
+        totalUnmatched: AtomicInteger,
+        progress: ProgressBar
+    ): Map<T, T> {
+        val classes = env.groupA.classes.stream()
+            .filter { it.real && it.hasMatch() && elements(it).isNotEmpty() }
+            .filter { elements(it).any { !it.hasMatch() } }
+            .collect(Collectors.toSet())
+
+        if(classes.isEmpty()) return Collections.emptyMap()
+
+        progress.maxHint(progress.current + classes.size.toLong())
+
+        val ret = hashMapOf<T, T>()
+
+        val maxScore = classifier.getMaxScore(level)
+
+        runParallel(classes, progress) { cls ->
+            var unmatched = 0
+
+            elements(cls).forEach { member ->
+                if(member.hasMatch()) return@forEach
+
+                val ranking = classifier.rank(member, elements(cls.match!!), level)
+
+                if(foundMatch(ranking, maxScore)) {
+                    val match = ranking[0].subject
+                    ret[member] = match
+                } else {
+                    unmatched++
+                }
+            }
+
+            if(unmatched > 0) totalUnmatched.addAndGet(unmatched)
+        }
+
+        resolveConflicts(ret)
+
+        return ret
     }
 
     /**
@@ -359,7 +462,7 @@ class Mapper(private val env: ClassEnvironment) {
                  * Match all.
                  */
                 try {
-                    mapper.matchAll(progress)
+                    mapper.run(progress)
                 } catch(e : Exception) {
                     e.printStackTrace()
                     progress.close()

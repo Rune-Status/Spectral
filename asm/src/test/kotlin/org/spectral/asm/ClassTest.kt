@@ -24,7 +24,7 @@ class ClassTest {
 
     @Test
     fun `asm node delegation`() {
-        every { group.getOrCreate(any()) } answers { mockk() }
+        every { group[any()] } answers { mockk() }
 
         val cls = Class(group, "test")
 
