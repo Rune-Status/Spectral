@@ -36,8 +36,8 @@ object ClassClassifier : AbstractClassifier<Class>() {
         addClassifier(methodInReferences, 6, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
     }
 
-    override fun rank(src: Class, dsts: Array<Class>, level: ClassifierLevel): List<RankResult<Class>> {
-        return ClassifierUtil.rank(src, dsts, getClassifiers(level), ClassifierUtil::isPotentiallyEqual, getMaxMismatch(level))
+    override fun rank(src: Class, dsts: Array<Class>, level: ClassifierLevel, maxMismatch: Double): List<RankResult<Class>> {
+        return ClassifierUtil.rank(src, dsts, getClassifiers(level), ClassifierUtil::isPotentiallyEqual, maxMismatch)
     }
 
     /**

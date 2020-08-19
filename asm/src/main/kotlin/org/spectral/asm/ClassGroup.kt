@@ -2,6 +2,7 @@ package org.spectral.asm
 
 import org.jgrapht.graph.*
 import org.objectweb.asm.tree.ClassNode
+import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.stream.Collectors
 
 /**
@@ -44,7 +45,7 @@ class ClassGroup internal constructor(
     /**
      * The list of [Class] contained in this group.
      */
-    val classes = nodes.map { Class(this, it) }.toHashSet()
+    val classes = nodes.map { Class(this, it) }.toMutableList().let { ConcurrentLinkedDeque<Class>().apply { this.addAll(it) } }
 
     /**
      * Initializes the class group.

@@ -26,7 +26,7 @@ abstract class AbstractClassifier<T> {
 
     abstract fun init()
 
-    abstract fun rank(src: T, dsts: Array<T>, level: ClassifierLevel): List<RankResult<T>>
+    abstract fun rank(src: T, dsts: Array<T>, level: ClassifierLevel, maxMismatch: Double = getMaxMismatch(level)): List<RankResult<T>>
 
     fun getClassifiers(level: ClassifierLevel): List<Classifier<T>> {
         return classifiers.filter { level in it.levels }

@@ -12,6 +12,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.Collectors
+import kotlin.math.sqrt
 
 /**
  * The Spectral Mapper Object.
@@ -23,7 +24,7 @@ import java.util.stream.Collectors
  * @property env The [ClassEnvironment] which has the class group objects loaded.
  * @constructor
  */
-class Mapper(private val env: ClassEnvironment) {
+class Mapper(val env: ClassEnvironment) {
 
     /**
      * Initialize the mapper.
@@ -45,7 +46,7 @@ class Mapper(private val env: ClassEnvironment) {
      * @param set Set<T>
      * @param action Function1<T, Unit>
      */
-    private fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
+    fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
         val availableThreads = Runtime.getRuntime().availableProcessors()
 
         runBlocking(CommonPool) {
@@ -67,7 +68,7 @@ class Mapper(private val env: ClassEnvironment) {
             /*
              * Run and await for each job from the queue to complete.
              */
-            taskQueue.forEach {
+            taskQueue.stream().collect(Collectors.toSet()).forEach {
                 it.await()
             }
         }
@@ -214,17 +215,26 @@ class Mapper(private val env: ClassEnvironment) {
         return matches.isNotEmpty()
     }
 
-    fun <T : Matchable<T>> classify(
+    inline fun <reified T : Matchable<T>> classify(
         level: ClassifierLevel,
-        elements: (Class) -> Array<T>,
+        noinline elements: (Class) -> Array<T>,
         classifier: AbstractClassifier<T>,
         totalUnmatched: AtomicInteger,
         progress: ProgressBar
     ): Map<T, T> {
         val classes = env.groupA.classes.stream()
-            .filter { it.real && it.hasMatch() && elements(it).isNotEmpty() }
+            .filter { it.real && elements(it).isNotEmpty() }
             .filter { elements(it).any { !it.hasMatch() } }
             .collect(Collectors.toSet())
+
+        val dsts = mutableListOf<T>()
+
+        /*
+         * build the matchables
+         */
+        env.groupB.classes.forEach { cls ->
+            dsts.addAll(elements(cls))
+        }
 
         if(classes.isEmpty()) return Collections.emptyMap()
 
@@ -233,6 +243,7 @@ class Mapper(private val env: ClassEnvironment) {
         val ret = hashMapOf<T, T>()
 
         val maxScore = classifier.getMaxScore(level)
+        val maxMismatch = maxScore - sqrt(ABSOLUTE_MATCHING_THRESHOLD * (1 - RELATIVE_MATCHING_THRESHOLD)) * maxScore
 
         runParallel(classes, progress) { cls ->
             var unmatched = 0
@@ -240,7 +251,7 @@ class Mapper(private val env: ClassEnvironment) {
             elements(cls).forEach { member ->
                 if(member.hasMatch()) return@forEach
 
-                val ranking = classifier.rank(member, elements(cls.match!!), level)
+                val ranking = classifier.rank(member, dsts.toTypedArray(), level, maxMismatch)
 
                 if(foundMatch(ranking, maxScore)) {
                     val match = ranking[0].subject
@@ -368,7 +379,7 @@ class Mapper(private val env: ClassEnvironment) {
      *
      * @param matches MutableMap<T, T>
      */
-    private fun <T> resolveConflicts(matches: MutableMap<T, T>) {
+    fun <T> resolveConflicts(matches: MutableMap<T, T>) {
         val matched = mutableSetOf<T>()
         val conflicts = mutableSetOf<T>()
 
@@ -390,7 +401,7 @@ class Mapper(private val env: ClassEnvironment) {
      * @param maxScore Double
      * @return Boolean
      */
-    private fun foundMatch(ranking: List<RankResult<*>>, maxScore: Double): Boolean {
+    fun foundMatch(ranking: List<RankResult<*>>, maxScore: Double): Boolean {
         if(ranking.isEmpty()) return false
 
         val score = getScore(ranking[0].score, maxScore)
@@ -411,7 +422,7 @@ class Mapper(private val env: ClassEnvironment) {
      * @param b Double
      * @return Double
      */
-    private fun getScore(a: Double, b: Double): Double {
+    fun getScore(a: Double, b: Double): Double {
         val ret = a / b
         return ret * ret
     }
