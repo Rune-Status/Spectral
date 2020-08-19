@@ -3,6 +3,7 @@ package org.spectral.mapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
+import kotlinx.coroutines.*
 import me.tongfei.progressbar.*
 import org.spectral.asm.*
 import org.spectral.common.coroutine.*
@@ -10,6 +11,7 @@ import org.spectral.mapper.classifier.*
 import org.tinylog.kotlin.Logger
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.Collectors
 import kotlin.math.sqrt
@@ -47,28 +49,17 @@ class Mapper(val env: ClassEnvironment) {
      * @param action Function1<T, Unit>
      */
     fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
-        val availableThreads = Runtime.getRuntime().availableProcessors()
+        runBlocking {
+            val tasks = ArrayDeque<Deferred<Unit>>()
 
-        runBlocking(CommonPool) {
-            val threadPool = newFixedThreadPoolContext(availableThreads, "mapper-thread")
-            val taskQueue = ArrayDeque<CompletableFuture<Unit>>()
-
-            /*
-             * Build the task queue
-             */
-            set.stream().collect(Collectors.toSet()).forEach {
-                val future = future(threadPool) {
+            set.forEach {
+                GlobalScope.async {
                     progress.step()
                     action(it)
-                }
-
-                taskQueue.push(future)
+                }.apply { tasks.push(this) }
             }
 
-            /*
-             * Run and await for each job from the queue to complete.
-             */
-            taskQueue.stream().collect(Collectors.toSet()).forEach {
+            tasks.forEach {
                 it.await()
             }
         }
@@ -155,20 +146,19 @@ class Mapper(val env: ClassEnvironment) {
         /*
          * The mapped classes.
          */
-        val classes = env.groupA.classes.stream()
+        val classes = env.groupA.classes
             .filter { it.real }
             .filter { !it.hasMatch() }
-            .collect(Collectors.toSet())
+            .toSet()
 
         /*
          * The unmapped classes to compare to.
          */
-        val cmpClasses = env.groupB.classes.stream()
+        val cmpClasses = env.groupB.classes
             .filter { it.real }
             .filter { !it.hasMatch() }
-            .collect(Collectors.toSet())
+            .toSet()
 
-        progress.extraMessage = "Classifying Classes"
         progress.maxHint(progress.current + classes.size.toLong())
 
         val maxScore = ClassClassifier.getMaxScore(level)
@@ -205,8 +195,19 @@ class Mapper(val env: ClassEnvironment) {
     fun matchMethods(level: ClassifierLevel, progress: ProgressBar): Boolean {
         val totalUnmatched = AtomicInteger()
 
-        progress.extraMessage = "Classifying Methods"
-        val matches = classify(level, { it.methods.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
+        val matches = classify(level, { it.methods.filter { !it.isStatic }.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
+
+        matches.forEach { (t, u) ->
+            match(t, u)
+        }
+
+        return matches.isNotEmpty()
+    }
+
+    fun matchStaticMethods(level: ClassifierLevel, progress: ProgressBar): Boolean {
+        val totalUnmatched = AtomicInteger()
+
+        val matches = classify(level, { it.methods.filter { it.isStatic }.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
 
         matches.forEach { (t, u) ->
             match(t, u)
@@ -222,10 +223,10 @@ class Mapper(val env: ClassEnvironment) {
         totalUnmatched: AtomicInteger,
         progress: ProgressBar
     ): Map<T, T> {
-        val classes = env.groupA.classes.stream()
+        val classes = env.groupA.classes
             .filter { it.real && elements(it).isNotEmpty() }
             .filter { elements(it).any { !it.hasMatch() } }
-            .collect(Collectors.toSet())
+            .toSet()
 
         val dsts = mutableListOf<T>()
 
@@ -278,7 +279,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Class, b: Class) {
         if(a.match == b) return
 
-        Logger.info("\t\t CLASS [$a] -> [$b]")
+        Logger.info("CLASS [$a] -> [$b]")
 
         /*
          * Set the class matches to each other.
@@ -338,7 +339,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Method, b: Method, matchHierarchy: Boolean = true) {
         if(a.match == b) return
 
-        Logger.info("\t\t METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
 
         a.match = b
         b.match = a
@@ -367,7 +368,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Field, b: Field) {
         if(a.match == b) return
 
-        Logger.info("\t\t FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
 
         a.match = b
         b.match = a
@@ -429,8 +430,8 @@ class Mapper(val env: ClassEnvironment) {
 
     companion object {
 
-        const val ABSOLUTE_MATCHING_THRESHOLD = 0.0
-        const val RELATIVE_MATCHING_THRESHOLD = 0.0
+        const val ABSOLUTE_MATCHING_THRESHOLD = 0.5
+        const val RELATIVE_MATCHING_THRESHOLD = 0.05
 
         @JvmStatic
         fun main(args: Array<String>) = object : CliktCommand(
@@ -464,7 +465,7 @@ class Mapper(val env: ClassEnvironment) {
                  * Progress bar
                  */
                 val progress = ProgressBarBuilder()
-                    .setTaskName("Matching")
+                    .setTaskName("Analyzing")
                     .setStyle(ProgressBarStyle.UNICODE_BLOCK)
                     .setUpdateIntervalMillis(100)
                     .build()
