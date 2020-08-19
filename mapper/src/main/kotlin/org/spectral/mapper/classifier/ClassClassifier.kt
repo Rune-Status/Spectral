@@ -6,6 +6,7 @@ import org.spectral.asm.Method
 import org.spectral.mapper.AbstractClassifier
 import org.spectral.mapper.ClassifierUtil
 import org.spectral.mapper.RankResult
+import java.util.stream.Collectors
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -117,11 +118,11 @@ object ClassClassifier : AbstractClassifier<Class>() {
         var bestMatch: Method? = null
         var bestScore = 0.0
 
-        for(methodA in a.methods) {
-            loopB@ for(methodB in methodsB) {
-                if(!ClassifierUtil.isPotentiallyEqual(methodA, methodB)) continue
-                if(!ClassifierUtil.isReturnTypesPotentiallyEqual(methodA, methodB)) continue
-                if(!ClassifierUtil.isArgTypesPotentiallyEqual(methodA, methodB)) continue@loopB
+        a.methods.forEach loopA@ { methodA ->
+            methodsB.forEach loopB@ { methodB ->
+                if(!ClassifierUtil.isPotentiallyEqual(methodA, methodB)) return@loopA
+                if(!ClassifierUtil.isReturnTypesPotentiallyEqual(methodA, methodB)) return@loopA
+                if(!ClassifierUtil.isArgTypesPotentiallyEqual(methodA, methodB)) return@loopB
 
                 val score: Double = if(methodA.real || methodB.real) {
                     if(methodA.real && methodB.real) 1.0 else 0.0
@@ -137,7 +138,7 @@ object ClassClassifier : AbstractClassifier<Class>() {
 
             if(bestMatch != null) {
                 totalScore += bestScore
-                methodsB.remove(bestMatch)
+                methodsB.remove(bestMatch!!)
             }
         }
 

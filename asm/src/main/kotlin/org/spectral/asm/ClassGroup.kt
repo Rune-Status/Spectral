@@ -44,7 +44,7 @@ class ClassGroup internal constructor(
     /**
      * The list of [Class] contained in this group.
      */
-    val classes = nodes.map { Class(this, it) }.toMutableList()
+    val classes = nodes.map { Class(this, it) }.toMutableSet()
 
     /**
      * Initializes the class group.
@@ -94,4 +94,6 @@ class ClassGroup internal constructor(
 
         return cls
     }
+
+    fun find(name: String): Class? = classes.firstOrNull { it.name == name }
 }

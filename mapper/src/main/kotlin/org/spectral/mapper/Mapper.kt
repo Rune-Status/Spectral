@@ -7,8 +7,11 @@ import org.spectral.asm.Class
 import org.spectral.asm.ClassEnvironment
 import org.spectral.asm.Field
 import org.spectral.asm.Method
+import org.spectral.common.coroutine.*
 import org.spectral.mapper.classifier.ClassClassifier
 import org.tinylog.kotlin.Logger
+import java.util.*
+import java.util.concurrent.CompletableFuture
 import java.util.stream.Collectors
 
 /**
@@ -33,6 +36,38 @@ class Mapper(private val env: ClassEnvironment) {
          * Initialize the classifiers.
          */
         ClassClassifier.init()
+    }
+
+    /**
+     * Run a iterable set process action in parallel using all
+     * available runtime threads.
+     *
+     * @param set Set<T>
+     * @param action Function1<T, Unit>
+     */
+    private fun <T> runParallel(set: Set<T>, action: (T) -> Unit) {
+        val availableThreads = Runtime.getRuntime().availableProcessors()
+
+        runBlocking(CommonPool) {
+            val threadPool = newFixedThreadPoolContext(availableThreads, "mapper-thread")
+            val taskQueue = ArrayDeque<CompletableFuture<Unit>>()
+
+            /*
+             * Build the task queue
+             */
+            set.stream().collect(Collectors.toSet()).forEach {
+                val future = future(threadPool) {
+                    action(it)
+                }
+
+                taskQueue.push(future)
+            }
+
+            /*
+             * Run and await for each job from the queue to complete.
+             */
+            taskQueue.forEach { it.await() }
+        }
     }
 
     /**
@@ -80,7 +115,7 @@ class Mapper(private val env: ClassEnvironment) {
         /*
          * Run the matching process
          */
-        classes.forEach { cls ->
+        runParallel(classes) { cls ->
             val ranking = ClassClassifier.rank(cls, cmpClasses.toTypedArray())
 
             if(foundMatch(ranking, maxScore)) {
@@ -121,7 +156,7 @@ class Mapper(private val env: ClassEnvironment) {
     fun match(a: Class, b: Class) {
         if(a.match == b) return
 
-        Logger.info("Matched \t\t CLASS [$a] -> [$b]")
+        Logger.info("\t\t CLASS [$a] -> [$b]")
 
         /*
          * Set the class matches to each other.
@@ -181,7 +216,7 @@ class Mapper(private val env: ClassEnvironment) {
     fun match(a: Method, b: Method, matchHierarchy: Boolean = true) {
         if(a.match == b) return
 
-        Logger.info("Matched \t\t METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("\t\t METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
 
         a.match = b
         b.match = a
@@ -210,7 +245,7 @@ class Mapper(private val env: ClassEnvironment) {
     fun match(a: Field, b: Field) {
         if(a.match == b) return
 
-        Logger.info("Matched \t\t FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("\t\t FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
 
         a.match = b
         b.match = a

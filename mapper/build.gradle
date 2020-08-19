@@ -1,5 +1,6 @@
 dependencies {
     implementation project(":asm")
+    implementation project(":common")
     api project(":mapping")
     implementation "org.ow2.asm:asm:$asm"
     implementation "org.ow2.asm:asm-commons:$asm"
@@ -8,4 +9,6 @@ dependencies {
     implementation "org.jgrapht:jgrapht-core:$jgrapht"
     implementation "com.github.ajalt:clikt:$clikt"
     implementation "me.tongfei:progressbar:$progressbar"
+    api "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines"
+
 }

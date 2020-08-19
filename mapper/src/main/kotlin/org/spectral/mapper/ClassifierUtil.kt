@@ -5,6 +5,7 @@ import org.spectral.asm.Class
 import org.spectral.asm.Field
 import org.spectral.asm.Matchable
 import org.spectral.asm.Method
+import java.util.stream.Collectors
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -80,8 +81,11 @@ object ClassifierUtil {
      * @return Boolean
      */
     fun isReturnTypesPotentiallyEqual(a: Method, b: Method): Boolean {
-        val returnClassA = a.group[a.returnType.className]
-        val returnClassB = b.group[b.returnType.className]
+        val returnClassA = a.group.find(a.returnType.className)
+        val returnClassB = b.group.find(b.returnType.className)
+
+        if(returnClassA == null && returnClassB == null) return a.returnType.sort == b.returnType.sort
+        if(returnClassA == null || returnClassB == null) return false
 
         return isPotentiallyEqual(returnClassA, returnClassB)
     }
@@ -95,8 +99,8 @@ object ClassifierUtil {
      * @return Boolean
      */
     fun isArgTypesPotentiallyEqual(a: Method, b: Method): Boolean {
-        val argTypesA = a.argumentTypes.map { a.group[it.className] }
-        val argTypesB = b.argumentTypes.map { b.group[it.className] }
+        val argTypesA = a.argumentTypes.mapNotNull { a.group.find(it.className) }
+        val argTypesB = b.argumentTypes.mapNotNull { b.group.find(it.className) }
 
         for(i in argTypesA.indices) {
             if(i >= argTypesB.size) return false
@@ -308,7 +312,7 @@ object ClassifierUtil {
     fun <T : Matchable<T>> rank(src: T, dsts: Array<T>, classifiers: Collection<Classifier<T>>, predicate: (T, T) -> Boolean, maxMismatch: Double): List<RankResult<T>> {
         val ret = mutableListOf<RankResult<T>>()
 
-        for(dst in dsts) {
+        for(dst in dsts.toList().stream().collect(Collectors.toSet())) {
             val result = rank(src, dst, classifiers, predicate, maxMismatch)
             if(result != null) {
                 ret.add(result)
