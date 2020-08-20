@@ -391,6 +391,29 @@ object ClassifierUtil {
     }
 
     /**
+     * Compares the instructions of two [Method] objects.
+     *
+     * Returns a score based on their similarity on how they interact with
+     * the JVM stack.
+     *
+     * @param a Method
+     * @param b Method
+     * @return Double
+     */
+    fun compareInsns(a: Method, b: Method): Double {
+        if(!a.real || !b.real) return 1.0
+
+        val insnsA = a.instructions
+        val insnsB = b.instructions
+
+        return compareLists(
+            insnsA, insnsB,
+            InsnList::get, InsnList::size,
+            { ia, ib -> compareInsns(ia, ib, insnsA, insnsB, { insns: InsnList, insn: AbstractInsnNode -> insns.indexOf(insn) }, a, b) }
+        )
+    }
+
+    /**
      * Compares two [Method] objects together by their given identifier attributes.
      *
      * @param ownerA String
