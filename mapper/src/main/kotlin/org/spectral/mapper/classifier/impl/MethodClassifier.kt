@@ -31,6 +31,7 @@ object MethodClassifier : AbstractClassifier<Method>() {
         addClassifier(outReferences, 6)
         addClassifier(fieldReads, 5)
         addClassifier(fieldWrites, 5)
+        addClassifier(execution, 12, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
     }
 
     /**
@@ -181,6 +182,13 @@ object MethodClassifier : AbstractClassifier<Method>() {
      */
     private val fieldWrites = classifier("field writes") { a, b ->
         return@classifier ClassifierUtil.compareFieldSets(a.fieldWriteRefs, b.fieldWriteRefs)
+    }
+
+    /**
+     * Execution
+     */
+    private val execution = classifier("instructions") { a, b ->
+        return@classifier ClassifierUtil.compareInsns(a, b)
     }
 
     private fun getArgumentTypes(method: Method): Array<Class> {
