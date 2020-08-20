@@ -328,6 +328,7 @@ class Mapper(val env: ClassEnvironment) {
      * @param b Class
      */
     fun match(a: Class, b: Class) {
+        if(a == b) return
         if(a.match == b) return
 
         Logger.info("match CLASS [$a] -> [$b]")
@@ -388,6 +389,7 @@ class Mapper(val env: ClassEnvironment) {
      * @param b Method
      */
     fun match(a: Method, b: Method, matchHierarchy: Boolean = true) {
+        if(a == b) return
         if(a.match == b) return
 
         Logger.info("match METHOD [$a] -> [$b]")
@@ -423,6 +425,7 @@ class Mapper(val env: ClassEnvironment) {
      * @param b Field
      */
     fun match(a: Field, b: Field) {
+        if(a == b) return
         if(a.match == b) return
 
         Logger.info("match FIELD [$a] -> [$b]")
