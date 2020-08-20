@@ -1,6 +1,7 @@
 package org.spectral.asm
 
 import org.objectweb.asm.Type
+import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.FieldNode
 import org.spectral.asm.util.asm
 import java.lang.reflect.Modifier
@@ -62,6 +63,8 @@ class Field private constructor(
     val writeRefs = hashSetOf<Method>()
 
     val overrides = hashSetOf<Field>()
+
+    var initializer: List<AbstractInsnNode>? = null
 
     override fun toString(): String {
         return "$owner.$name"

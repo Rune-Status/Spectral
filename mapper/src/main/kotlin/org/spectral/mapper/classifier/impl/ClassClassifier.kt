@@ -1,13 +1,15 @@
-package org.spectral.mapper.classifier
+package org.spectral.mapper.classifier.impl
 
 import org.objectweb.asm.Opcodes.*
 import org.spectral.asm.Class
 import org.spectral.asm.FeatureExtractor
+import org.spectral.asm.Field
 import org.spectral.asm.Method
-import org.spectral.mapper.AbstractClassifier
-import org.spectral.mapper.ClassifierUtil
+import org.spectral.mapper.Mapper
 import org.spectral.mapper.RankResult
-import java.util.stream.Collectors
+import org.spectral.mapper.classifier.AbstractClassifier
+import org.spectral.mapper.classifier.ClassifierLevel
+import org.spectral.mapper.classifier.ClassifierUtil
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -35,12 +37,15 @@ object ClassClassifier : AbstractClassifier<Class>() {
         addClassifier(inReferences, 6)
         addClassifier(stringConstants, 8)
         addClassifier(numericConstants, 6)
-        addClassifier(methodOutReferences, 5)
-        addClassifier(methodInReferences, 6)
+        addClassifier(methodOutReferences, 5, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
+        addClassifier(methodInReferences, 6, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
+        addClassifier(fieldReadReferences, 5, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
+        addClassifier(fieldWriteReferences, 5, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
+        addClassifier(membersFull, 10, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
     }
 
-    override fun rank(src: Class, dsts: Array<Class>): List<RankResult<Class>> {
-        return ClassifierUtil.rank(src, dsts, classifiers, ClassifierUtil::isPotentiallyEqual, this.maxMismatch)
+    override fun rank(src: Class, dsts: Array<Class>, level: ClassifierLevel, maxMismatch: Double): List<RankResult<Class>> {
+        return ClassifierUtil.rank(src, dsts, getClassifiers(level), ClassifierUtil::isPotentiallyEqual, maxMismatch)
     }
 
     /**
@@ -58,14 +63,20 @@ object ClassClassifier : AbstractClassifier<Class>() {
      * Hierarchy Depth
      */
     private val hierarchyDepth = classifier("hierarchy depth") { a, b ->
-        return@classifier ClassifierUtil.compareCounts(a.hierarchy.size, b.hierarchy.size)
+        return@classifier ClassifierUtil.compareCounts(
+            a.hierarchy.size,
+            b.hierarchy.size
+        )
     }
 
     /**
      * Hierarchy Siblings
      */
     private val hierarchySiblings = classifier("hierarchy siblings") { a, b ->
-        return@classifier ClassifierUtil.compareCounts(a.parent!!.children.size, b.parent!!.children.size)
+        return@classifier ClassifierUtil.compareCounts(
+            a.parent!!.children.size,
+            b.parent!!.children.size
+        )
     }
 
     /**
@@ -75,42 +86,61 @@ object ClassClassifier : AbstractClassifier<Class>() {
         if(a.parent == null && b.parent == null) return@classifier 1.0
         if(a.parent == null || b.parent == null) return@classifier 0.0
 
-        return@classifier if(ClassifierUtil.isPotentiallyEqual(a.parent!!, b.parent!!)) 1.0 else 0.0
+        return@classifier if(ClassifierUtil.isPotentiallyEqual(
+                a.parent!!,
+                b.parent!!
+            )
+        ) 1.0 else 0.0
     }
 
     /**
      * Child Classes
      */
     private val childClasses = classifier("child classes") { a, b ->
-        return@classifier ClassifierUtil.compareClassSets(a.children, b.children)
+        return@classifier ClassifierUtil.compareClassSets(
+            a.children,
+            b.children
+        )
     }
 
     /**
      * Interfaces
      */
     private val interfaces = classifier("interfaces") { a, b ->
-        return@classifier ClassifierUtil.compareClassSets(a.interfaces, b.interfaces)
+        return@classifier ClassifierUtil.compareClassSets(
+            a.interfaces,
+            b.interfaces
+        )
     }
 
     /**
      * Implementers
      */
     private val implementers = classifier("implementers") { a, b ->
-        return@classifier ClassifierUtil.compareClassSets(a.implementers, b.implementers)
+        return@classifier ClassifierUtil.compareClassSets(
+            a.implementers,
+            b.implementers
+        )
     }
 
     /**
      * Method Count
      */
     private val methodCount = classifier("method count") { a, b ->
-        return@classifier ClassifierUtil.compareCounts(a.methods.size, b.methods.size)
+        return@classifier ClassifierUtil.compareCounts(
+            a.methods.size,
+            b.methods.size
+        )
     }
 
     /**
      * Field Count
      */
     private val fieldCount = classifier("field count") { a, b ->
-        return@classifier ClassifierUtil.compareCounts(a.fields.size, b.fields.size)
+        return@classifier ClassifierUtil.compareCounts(
+            a.fields.size,
+            b.fields.size
+        )
     }
 
     /**
@@ -127,14 +157,29 @@ object ClassClassifier : AbstractClassifier<Class>() {
 
         a.methods.forEach loopA@ { methodA ->
             methodsB.forEach loopB@ { methodB ->
-                if(!ClassifierUtil.isPotentiallyEqual(methodA, methodB)) return@loopA
-                if(!ClassifierUtil.isReturnTypesPotentiallyEqual(methodA, methodB)) return@loopA
-                if(!ClassifierUtil.isArgTypesPotentiallyEqual(methodA, methodB)) return@loopB
+                if(!ClassifierUtil.isPotentiallyEqual(
+                        methodA,
+                        methodB
+                    )
+                ) return@loopA
+                if(!ClassifierUtil.isReturnTypesPotentiallyEqual(
+                        methodA,
+                        methodB
+                    )
+                ) return@loopA
+                if(!ClassifierUtil.isArgTypesPotentiallyEqual(
+                        methodA,
+                        methodB
+                    )
+                ) return@loopB
 
                 val score: Double = if(methodA.real || methodB.real) {
                     if(methodA.real && methodB.real) 1.0 else 0.0
                 } else {
-                    ClassifierUtil.compareCounts(methodA.instructions.size(), methodB.instructions.size())
+                    ClassifierUtil.compareCounts(
+                        methodA.instructions.size(),
+                        methodB.instructions.size()
+                    )
                 }
 
                 if(score > bestScore) {
@@ -156,7 +201,10 @@ object ClassClassifier : AbstractClassifier<Class>() {
      * String Constants
      */
     private val stringConstants = classifier("string constants") { a, b ->
-        return@classifier ClassifierUtil.compareSets(a.strings, b.strings)
+        return@classifier ClassifierUtil.compareSets(
+            a.strings,
+            b.strings
+        )
     }
 
     /**
@@ -188,7 +236,10 @@ object ClassClassifier : AbstractClassifier<Class>() {
         val refsA = a.outRefs
         val refsB = b.outRefs
 
-        return@classifier ClassifierUtil.compareClassSets(refsA, refsB)
+        return@classifier ClassifierUtil.compareClassSets(
+            refsA,
+            refsB
+        )
     }
 
     /**
@@ -198,7 +249,10 @@ object ClassClassifier : AbstractClassifier<Class>() {
         val refsA = a.inRefs
         val refsB = b.inRefs
 
-        return@classifier ClassifierUtil.compareClassSets(refsA, refsB)
+        return@classifier ClassifierUtil.compareClassSets(
+            refsA,
+            refsB
+        )
     }
 
     /**
@@ -208,7 +262,10 @@ object ClassClassifier : AbstractClassifier<Class>() {
         val refsA = a.methodOutRefs
         val refsB = b.methodOutRefs
 
-        return@classifier ClassifierUtil.compareMethodSets(refsA, refsB)
+        return@classifier ClassifierUtil.compareMethodSets(
+            refsA,
+            refsB
+        )
     }
 
     /**
@@ -218,7 +275,58 @@ object ClassClassifier : AbstractClassifier<Class>() {
         val refsA = a.methodInRefs
         val refsB = b.methodInRefs
 
-        return@classifier ClassifierUtil.compareMethodSets(refsA, refsB)
+        return@classifier ClassifierUtil.compareMethodSets(
+            refsA,
+            refsB
+        )
+    }
+
+    /**
+     * Field Read References
+     */
+    private val fieldReadReferences = classifier("field read references") { a, b ->
+        val refsA = a.fieldReadRefs
+        val refsB = b.fieldReadRefs
+
+        return@classifier ClassifierUtil.compareFieldSets(refsA, refsB)
+    }
+
+    /**
+     * Field Write References
+     */
+    private val fieldWriteReferences = classifier("field write references") { a, b ->
+        val refsA = a.fieldWriteRefs
+        val refsB = b.fieldWriteRefs
+
+        return@classifier ClassifierUtil.compareFieldSets(refsA, refsB)
+    }
+
+    /**
+     * Members Full
+     */
+    private val membersFull = classifier("members full") { a, b ->
+        val level = ClassifierLevel.TERTIARY
+        var match = 0.0
+
+        /*
+         * Match method members.
+         */
+        if(a.methods.isNotEmpty() && b.methods.isNotEmpty()) {
+            val maxScore = MethodClassifier.getMaxScore(level)
+
+            a.methods.filter { it.real && !it.isStatic }.forEach { methodA ->
+                val ranking = MethodClassifier.rank(methodA, b.methods.filter { it.real && !it.isStatic }.toTypedArray(), level, Double.POSITIVE_INFINITY)
+                if(Mapper.foundMatch(ranking, maxScore)) match += Mapper.getScore(ranking[0].score, maxScore)
+            }
+        }
+
+        val methodCount = max(a.methods.size, b.methods.size)
+
+        if(methodCount == 0) {
+            return@classifier 1.0
+        } else {
+            return@classifier match / methodCount
+        }
     }
 
     private val Class.outRefs: MutableSet<Class> get() {
@@ -244,6 +352,18 @@ object ClassClassifier : AbstractClassifier<Class>() {
     private val Class.methodInRefs: MutableSet<Method> get() {
         val ret = hashSetOf<Method>()
         this.methods.forEach { ret.addAll(it.refsIn) }
+        return ret
+    }
+
+    private val Class.fieldReadRefs: MutableSet<Field> get() {
+        val ret = hashSetOf<Field>()
+        this.methods.forEach { ret.addAll(it.fieldReadRefs) }
+        return ret
+    }
+
+    private val Class.fieldWriteRefs: MutableSet<Field> get() {
+        val ret = hashSetOf<Field>()
+        this.methods.forEach { ret.addAll(it.fieldWriteRefs) }
         return ret
     }
 

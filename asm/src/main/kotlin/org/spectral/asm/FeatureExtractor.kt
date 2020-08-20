@@ -5,6 +5,7 @@ import org.objectweb.asm.Opcodes.*
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
 import org.objectweb.asm.tree.AbstractInsnNode.*
+import org.spectral.asm.util.Interpreter
 import java.lang.reflect.Modifier
 import java.util.stream.Collectors
 
@@ -30,6 +31,13 @@ class FeatureExtractor(val group: ClassGroup) {
          */
         group.forEach { c ->
             this.processC(c)
+        }
+
+        /*
+         * Processing Pass D
+         */
+        group.forEach { c ->
+            this.processD(c)
         }
     }
 
@@ -142,6 +150,22 @@ class FeatureExtractor(val group: ClassGroup) {
         }
     }
 
+    private fun processD(cls: Class) {
+        /*
+         * Process field initializers
+         */
+        cls.fields.forEach { f ->
+            if(f.writeRefs.size == 1) {
+                /*
+                 * If the field has only one value initialized for
+                 * the entire runtime duration, we can grab the initializer
+                 * instructions to calculate its value.
+                 */
+                f.initializer = Interpreter.extractInitializer(f)
+            }
+        }
+    }
+
     /**
      * Processes the method instructions for a given method.
      *
@@ -222,6 +246,8 @@ class FeatureExtractor(val group: ClassGroup) {
         dst.owner.methodTypeRefs.add(method)
         method.classRefs.add(dst.owner)
     }
+
+
 
     companion object {
 
