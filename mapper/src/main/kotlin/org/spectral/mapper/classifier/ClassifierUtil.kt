@@ -78,6 +78,21 @@ object ClassifierUtil {
     }
 
     /**
+     * Gets whether two given [Field] object ASM [Type] objects are potential
+     * match candidates.
+     *
+     * @param a Field
+     * @param b Field
+     * @return Boolean
+     */
+    fun isTypesPotentiallyEqual(a: Field, b: Field): Boolean {
+        val typeClassA = a.group[a.type.className]
+        val typeClassB = b.group[b.type.className]
+
+        return isPotentiallyEqual(typeClassA, typeClassB)
+    }
+
+    /**
      * Gets whether two give return [Type] objects from two [Method] objects are
      * potentially match candidates.
      *
