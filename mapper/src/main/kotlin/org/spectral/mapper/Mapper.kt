@@ -327,7 +327,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Class, b: Class) {
         if(a.match == b) return
 
-        Logger.info("CLASS [$a] -> [$b]")
+        Logger.info("match CLASS [$a] -> [$b]")
 
         /*
          * Set the class matches to each other.
@@ -387,7 +387,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Method, b: Method, matchHierarchy: Boolean = true) {
         if(a.match == b) return
 
-        Logger.info("METHOD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("match METHOD [$a] -> [$b]")
 
         a.match = b
         b.match = a
@@ -422,7 +422,7 @@ class Mapper(val env: ClassEnvironment) {
     fun match(a: Field, b: Field) {
         if(a.match == b) return
 
-        Logger.info("FIELD [${a.owner}.${a.name}] -> [${b.owner}.${b.name}]")
+        Logger.info("match FIELD [$a] -> [$b]")
 
         a.match = b
         b.match = a
@@ -471,7 +471,7 @@ class Mapper(val env: ClassEnvironment) {
          * This number controls the MINIMUM score ratio for a classification to
          * consider it for matching. The value should be between 0.0 - 1.0
          */
-        const val ABSOLUTE_MATCHING_THRESHOLD = 0.25
+        const val ABSOLUTE_MATCHING_THRESHOLD = 0.0
 
         /**
          * The RELATIVE matching threshold.
@@ -481,7 +481,7 @@ class Mapper(val env: ClassEnvironment) {
          *
          * Default Value means the score of the highest / second highest score > 0.025 to consider matching.
          */
-        const val RELATIVE_MATCHING_THRESHOLD = 0.025
+        const val RELATIVE_MATCHING_THRESHOLD = 0.001
 
         /**
          * Gets whether a match was found given a list of classifier rank results.
