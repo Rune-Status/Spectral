@@ -3,20 +3,19 @@ package org.spectral.mapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
-import com.google.common.util.concurrent.ThreadFactoryBuilder
-import kotlinx.coroutines.*
 import me.tongfei.progressbar.*
 import org.spectral.asm.*
+import org.spectral.common.coroutine.await
+import org.spectral.common.coroutine.future
+import org.spectral.common.coroutine.newFixedThreadPoolContext
+import org.spectral.common.coroutine.runBlocking
 import org.spectral.mapper.classifier.*
 import org.spectral.mapper.classifier.impl.ClassClassifier
 import org.spectral.mapper.classifier.impl.FieldClassifier
 import org.spectral.mapper.classifier.impl.MethodClassifier
 import org.tinylog.kotlin.Logger
-import java.lang.Runnable
 import java.util.*
-import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.stream.Collectors
 import kotlin.math.sqrt
 
 /**
@@ -31,9 +30,16 @@ import kotlin.math.sqrt
  */
 class Mapper(val env: ClassEnvironment) {
 
-    private val threads = Runtime.getRuntime().availableProcessors() - 2
+    /**
+     * The number of threads to use.
+     */
+    private val availableThreads = Runtime.getRuntime().availableProcessors() - 1
 
-    private val executor = Executors.newWorkStealingPool(threads)
+    /**
+     * The CPU thread pool object.
+     */
+    private val threadPool = newFixedThreadPoolContext(availableThreads, "mapper-thread")
+
 
     /**
      * Initialize the mapper.
@@ -58,16 +64,24 @@ class Mapper(val env: ClassEnvironment) {
      */
     fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
         /*
-         * Run a execution for each available thread.
+         * Block the primary thread while we execute the tasks
+         * in parallel on [availableThread] CPU threads.
          */
-        val queuedTasks = executor.invokeAll(set.map {
-            Callable {
-                progress.step()
+        runBlocking(threadPool) {
+            /*
+             * Create a list of [CompletableFuture] jobs.
+             */
+            val jobs = set.map { future(threadPool) {
                 action(it)
-            }
-        })
+                progress.step()
+                return@future null
+            } }
 
-        queuedTasks.forEach { it.get() }
+            /*
+             * Await for all the jobs to complete.
+             */
+            jobs.forEach { it.await() }
+        }
     }
 
     /**
@@ -437,7 +451,36 @@ class Mapper(val env: ClassEnvironment) {
 
     companion object {
 
+        /**
+         * To properly adjust this values below to you're liking plug the following formula used for
+         * this constant into a graphing calculator.
+         *
+         * y = <Classifier Weight's Total> - sqrt( ABSOLUTE_MATCHING_THRESHOLD * ( 1 - RELATIVE_MATCHING_THRESHOLD )) * <Classifier Weight's Total>
+         *
+         * You can plug this in with multiple formulas like below:
+         *
+         * y = w - sqrt( a * ( 1 - b ) ) * w
+         * w = x
+         * a = 1 / x
+         * b = 1 / x
+         */
+
+        /**
+         * The ABSOLUTE matching threshold.
+         *
+         * This number controls the MINIMUM score ratio for a classification to
+         * consider it for matching. The value should be between 0.0 - 1.0
+         */
         const val ABSOLUTE_MATCHING_THRESHOLD = 0.25
+
+        /**
+         * The RELATIVE matching threshold.
+         *
+         * This number controls the MINIMUM score ratio between the highest and the second highest classification score
+         * to consider a match.
+         *
+         * Default Value means the score of the highest / second highest score > 0.025 to consider matching.
+         */
         const val RELATIVE_MATCHING_THRESHOLD = 0.025
 
         /**
@@ -506,9 +549,8 @@ class Mapper(val env: ClassEnvironment) {
                  */
                 val progress = ProgressBarBuilder()
                     .setTaskName("Analyzing")
-                    .setStyle(ProgressBarStyle.ASCII)
+                    .setStyle(ProgressBarStyle.COLORFUL_UNICODE_BLOCK)
                     .setUpdateIntervalMillis(200)
-                    .setConsumer(DelegatingProgressBarConsumer(Logger::info))
                     .build()
 
                 /*
