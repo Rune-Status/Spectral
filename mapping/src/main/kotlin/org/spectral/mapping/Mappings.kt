@@ -1,71 +1,51 @@
 package org.spectral.mapping
 
-import org.tinylog.kotlin.Logger
-import java.io.File
-import java.io.IOException
-import java.nio.file.Files
+import org.spectral.asm.ClassGroup
 
 /**
- * Represents a memory model of the name mappings of the
- * obfuscated Jagex gamepack.
+ * Represents a model of obfuscation name mappings
+ * between Class group revisions.
  */
-class Mappings {
+class Mappings private constructor() {
 
     /**
-     * The class mappings inside this object
+     * A list of class mappings
      */
     val classes = mutableListOf<ClassMapping>()
 
-    /**
-     * Loads and parses mappings from a directory.
-     *
-     * @param folder File
-     */
-    fun load(folder: File) {
-       Logger.info("Loading mappings from directory: '${folder.path}'.")
+    companion object {
 
-        val mappingFiles = folder.listFiles { _, name -> name.endsWith(".mapping") } ?: throw IOException()
+        /**
+         * Initializes a [Mappings] model from a [ClassGroup] and it's
+         * entries matched elements.
+         *
+         * @param group ClassGroup
+         * @return Mappings
+         */
+        fun load(group: ClassGroup): Mappings {
+            val mappings = Mappings()
 
-        if(mappingFiles.isEmpty()) {
-            Logger.error("No mapping files found in folder: '${folder.path}'.")
-            return
-        }
+            group.classes.filter { it.real }.forEach { c ->
+                val classMapping = ClassMapping(c.name, c.match?.name ?: "?")
 
-        mappingFiles.forEach { f ->
-            Logger.info("Loading mapping file: '${f.name}'")
+                c.fields.filter { it.real }.forEach fieldLoop@ { f ->
+                    if(!f.hasMatch()) return@fieldLoop
 
-            val rawText = Files.newBufferedReader(f.toPath()).use { reader ->
-                return@use reader.readText()
+                    val fieldMapping = FieldMapping(c.name, f.name, f.desc, f.match!!.name, f.match!!.desc)
+                    classMapping.fields.add(fieldMapping)
+                }
+
+                c.methods.filter { it.real }.forEach methodLoop@ { m ->
+                    if(!m.hasMatch()) return@methodLoop
+
+                    val methodMapping = MethodMapping(c.name, m.name, m.desc, m.match!!.name, m.match!!.desc)
+                    classMapping.methods.add(methodMapping)
+                }
+
+                mappings.classes.add(classMapping)
             }
 
-            val classMapping = MappingParser.parse(rawText)
-
-            classes.add(classMapping)
+            return mappings
         }
-
-        Logger.info("Successfully loaded ${classes.size} class mappings.")
-    }
-
-    /**
-     * Exports the mappings to a directory file format.
-     *
-     * @param folder File
-     */
-    fun export(folder: File) {
-        Logger.info("Exporting mappings to folder: '${folder.absolutePath}'")
-
-        folder.delete()
-        folder.mkdirs()
-
-        val path = folder.toPath()
-        classes.forEach { c ->
-            val classPath = path.resolve(c.name + ".mapping")
-
-            Files.newBufferedWriter(classPath).use { writer ->
-                writer.write(c.toString())
-            }
-        }
-
-        Logger.info("Completed export of mappings.")
     }
 }

@@ -15,7 +15,7 @@ shadowJar {
 dependencies {
     implementation project(":asm")
     implementation project(":common")
-    api project(":mapping")
+    implementation project(":mapping")
     implementation "org.ow2.asm:asm:$asm"
     implementation "org.ow2.asm:asm-commons:$asm"
     implementation "org.ow2.asm:asm-util:$asm"

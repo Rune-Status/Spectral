@@ -2,6 +2,7 @@ package org.spectral.mapper
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import me.tongfei.progressbar.*
 import org.spectral.asm.*
@@ -13,6 +14,8 @@ import org.spectral.mapper.classifier.*
 import org.spectral.mapper.classifier.impl.ClassClassifier
 import org.spectral.mapper.classifier.impl.FieldClassifier
 import org.spectral.mapper.classifier.impl.MethodClassifier
+import org.spectral.mapping.Mappings
+import org.spectral.mapping.io.MappingsWriter
 import org.tinylog.kotlin.Logger
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -525,8 +528,10 @@ class Mapper(val env: ClassEnvironment) {
         ) {
 
             private val mappedJarFile by argument(name = "mapped jar", help = "Path to the mapped / renamed JAR file").file(mustExist = true, canBeDir = false)
+
             private val targetJarFile by argument(name = "unmapped deob jar", help = "Path to the un-renamed deob JAR file").file(mustExist = true, canBeDir = false)
 
+            private val exportDir by option("-e", "--export", help = "Export mappings directory.").file(canBeDir = true)
 
             /**
              * Command logic.
@@ -564,6 +569,26 @@ class Mapper(val env: ClassEnvironment) {
                 } finally {
                     progress.close()
                 }
+
+                /*
+                 * If the export directory flag is present,
+                 * output the mappings to the [exprotDir] folder.
+                 */
+                if(exportDir != null) {
+                    Logger.info("Exporting mappings to directory: '${exportDir!!.path}'")
+
+                    val mappings = Mappings.load(environment.groupA)
+                    val writer = MappingsWriter(mappings)
+
+                    /*
+                     * Write the mapping files.
+                     */
+                    writer.write(exportDir!!)
+
+                    Logger.info("Mappings have successfully been exported.")
+                }
+
+                Logger.info("Mapper completed successfully.")
             }
 
         }.main(args)

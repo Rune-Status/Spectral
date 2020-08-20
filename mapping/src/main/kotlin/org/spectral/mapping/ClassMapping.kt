@@ -1,21 +1,23 @@
 package org.spectral.mapping
 
+import java.lang.StringBuilder
+
 /**
- * Represents a Class name mapping between obfuscated and readable.
+ * Represents the name to obfuscated name mappings for
+ * a class file.
  *
- * @property name The readable name of the class
- * @property obfName The obfuscated name of the class
- * @constructor
+ * @property name The class name
+ * @property obfName The obfuscated class name.
  */
 class ClassMapping(val name: String, val obfName: String) {
 
     /**
-     * The contained method mappings in this class.
+     * The method mappings in class.
      */
     val methods = mutableListOf<MethodMapping>()
 
     /**
-     * The contained field mappings in this class.
+     * The field mappings in this class.
      */
     val fields = mutableListOf<FieldMapping>()
 
