@@ -21,7 +21,7 @@ abstract class AbstractClassifier<T> {
      * This is the highest score that a match is considered to be a mismatch.
      */
     fun getMaxMismatch(level: ClassifierLevel): Double {
-        return sqrt(Mapper.ABSOLUTE_MATCHING_THRESHOLD * (1 - Mapper.RELATIVE_MATCHING_THRESHOLD)) * getMaxScore(level)
+        return getMaxScore(level) - (sqrt(Mapper.ABSOLUTE_MATCHING_THRESHOLD * (1 - Mapper.RELATIVE_MATCHING_THRESHOLD)) * getMaxScore(level))
     }
 
     abstract fun init()
@@ -33,7 +33,9 @@ abstract class AbstractClassifier<T> {
     }
 
     internal fun addClassifier(classifier: Classifier<T>, weight: Int, vararg levels: ClassifierLevel) {
-        classifier.levels.addAll(levels)
+        if(levels.isEmpty()) classifier.levels.addAll(ClassifierLevel.ALL)
+        else classifier.levels.addAll(levels)
+
         classifier.weight = weight.toDouble()
         classifiers.add(classifier)
     }
@@ -42,7 +44,7 @@ abstract class AbstractClassifier<T> {
         return object : Classifier<T> {
             override val name = name
             override var weight = 0.0
-            override val levels = mutableListOf(ClassifierLevel.INITIAL)
+            override val levels = mutableListOf<ClassifierLevel>()
             override fun getScore(a: T, b: T): Double {
                 return getScore(a, b)
             }

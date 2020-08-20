@@ -3,15 +3,18 @@ package org.spectral.mapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.file
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import kotlinx.coroutines.*
 import me.tongfei.progressbar.*
 import org.spectral.asm.*
-import org.spectral.common.coroutine.*
 import org.spectral.mapper.classifier.*
+import org.spectral.mapper.classifier.impl.ClassClassifier
+import org.spectral.mapper.classifier.impl.FieldClassifier
+import org.spectral.mapper.classifier.impl.MethodClassifier
 import org.tinylog.kotlin.Logger
+import java.lang.Runnable
 import java.util.*
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.Collectors
 import kotlin.math.sqrt
@@ -28,6 +31,10 @@ import kotlin.math.sqrt
  */
 class Mapper(val env: ClassEnvironment) {
 
+    private val threads = Runtime.getRuntime().availableProcessors() - 2
+
+    private val executor = Executors.newWorkStealingPool(threads)
+
     /**
      * Initialize the mapper.
      */
@@ -39,6 +46,7 @@ class Mapper(val env: ClassEnvironment) {
          */
         ClassClassifier.init()
         MethodClassifier.init()
+        FieldClassifier.init()
     }
 
     /**
@@ -49,20 +57,17 @@ class Mapper(val env: ClassEnvironment) {
      * @param action Function1<T, Unit>
      */
     fun <T> runParallel(set: Set<T>, progress: ProgressBar, action: (T) -> Unit) {
-        runBlocking {
-            val tasks = ArrayDeque<Deferred<Unit>>()
-
-            set.forEach {
-                GlobalScope.async {
-                    progress.step()
-                    action(it)
-                }.apply { tasks.push(this) }
+        /*
+         * Run a execution for each available thread.
+         */
+        val queuedTasks = executor.invokeAll(set.map {
+            Callable {
+                progress.step()
+                action(it)
             }
+        })
 
-            tasks.forEach {
-                it.await()
-            }
-        }
+        queuedTasks.forEach { it.get() }
     }
 
     /**
@@ -81,7 +86,6 @@ class Mapper(val env: ClassEnvironment) {
         /*
          * Match each classifier level recursively.
          */
-        matchLevel(ClassifierLevel.INITIAL, progress)
         matchLevel(ClassifierLevel.SECONDARY, progress)
         matchLevel(ClassifierLevel.TERTIARY, progress)
         matchLevel(ClassifierLevel.EXTRA,progress)
@@ -118,8 +122,10 @@ class Mapper(val env: ClassEnvironment) {
             /*
              * Attempt to match normal methods.
              */
-            matchedAny = matchStaticMethods(level, progress)
-            matchedAny = matchedAny or matchMethods(level, progress)
+            matchedAny = matchMethods(level, true, progress)
+            matchedAny = matchedAny or matchFields(level, true, progress)
+            matchedAny = matchedAny or matchMethods(level, false, progress)
+            matchedAny = matchedAny or matchFields(level, false, progress)
 
             /*
              * If no methods where matched, break out of the loop.
@@ -160,7 +166,8 @@ class Mapper(val env: ClassEnvironment) {
             .filter { !it.hasMatch() }
             .toSet()
 
-        progress.maxHint(progress.current + classes.size.toLong())
+        progress.maxHint(classes.size.toLong())
+        progress.stepTo(0L)
 
         val maxScore = ClassClassifier.getMaxScore(level)
 
@@ -193,10 +200,18 @@ class Mapper(val env: ClassEnvironment) {
         return matches.isNotEmpty()
     }
 
-    fun matchMethods(level: ClassifierLevel, progress: ProgressBar): Boolean {
+    /**
+     * Matches normal member methods.
+     *
+     * @param level ClassifierLevel
+     * @param progress ProgressBar
+     * @return Boolean
+     */
+    fun matchMethods(level: ClassifierLevel, static: Boolean, progress: ProgressBar): Boolean {
         val totalUnmatched = AtomicInteger()
 
-        val matches = classify(level, { it.methods.filter { !it.isStatic }.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
+        val matches = classify(level, { it.methods.filter { it.isStatic == static }.toTypedArray() },
+            MethodClassifier, totalUnmatched, progress)
 
         matches.forEach { (t, u) ->
             match(t, u)
@@ -205,10 +220,17 @@ class Mapper(val env: ClassEnvironment) {
         return matches.isNotEmpty()
     }
 
-    fun matchStaticMethods(level: ClassifierLevel, progress: ProgressBar): Boolean {
+    /**
+     * Matches normal member fields.
+     *
+     * @param level ClassifierLevel
+     * @param progress ProgressBar
+     * @return Boolean
+     */
+    fun matchFields(level: ClassifierLevel, static: Boolean, progress: ProgressBar): Boolean {
         val totalUnmatched = AtomicInteger()
 
-        val matches = classify(level, { it.methods.filter { it.isStatic }.toTypedArray() }, MethodClassifier, totalUnmatched, progress)
+        val matches = classify(level, { it.fields.filter { it.isStatic == static }.toTypedArray() }, FieldClassifier, totalUnmatched, progress)
 
         matches.forEach { (t, u) ->
             match(t, u)
@@ -217,6 +239,16 @@ class Mapper(val env: ClassEnvironment) {
         return matches.isNotEmpty()
     }
 
+    /**
+     * Generates a matches map for a given matchable type.
+     *
+     * @param level ClassifierLevel
+     * @param elements Function1<Class, Array<T>>
+     * @param classifier AbstractClassifier<T>
+     * @param totalUnmatched AtomicInteger
+     * @param progress ProgressBar
+     * @return Map<T, T>
+     */
     inline fun <reified T : Matchable<T>> classify(
         level: ClassifierLevel,
         noinline elements: (Class) -> Array<T>,
@@ -240,7 +272,8 @@ class Mapper(val env: ClassEnvironment) {
 
         if(classes.isEmpty()) return Collections.emptyMap()
 
-        progress.maxHint(progress.current + classes.size.toLong())
+        progress.maxHint(classes.size.toLong())
+        progress.stepTo(0L)
 
         val ret = hashMapOf<T, T>()
 
@@ -366,6 +399,12 @@ class Mapper(val env: ClassEnvironment) {
         }
     }
 
+    /**
+     * Matches two given [Field] objects together.
+     *
+     * @param a Field
+     * @param b Field
+     */
     fun match(a: Field, b: Field) {
         if(a.match == b) return
 
@@ -396,43 +435,43 @@ class Mapper(val env: ClassEnvironment) {
         }
     }
 
-    /**
-     * Gets whether a match was found given a list of classifier rank results.
-     *
-     * @param ranking List<RankResult<*>>
-     * @param maxScore Double
-     * @return Boolean
-     */
-    fun foundMatch(ranking: List<RankResult<*>>, maxScore: Double): Boolean {
-        if(ranking.isEmpty()) return false
-
-        val score = getScore(ranking[0].score, maxScore)
-        if(score < ABSOLUTE_MATCHING_THRESHOLD) return false
-
-        return if(ranking.size == 1) {
-            true
-        } else {
-            val nextScore = getScore(ranking[1].score , maxScore)
-            nextScore < score * (1 - RELATIVE_MATCHING_THRESHOLD)
-        }
-    }
-
-    /**
-     * Calculates the score in a scale
-     *
-     * @param a Double
-     * @param b Double
-     * @return Double
-     */
-    fun getScore(a: Double, b: Double): Double {
-        val ret = a / b
-        return ret * ret
-    }
-
     companion object {
 
-        const val ABSOLUTE_MATCHING_THRESHOLD = 0.5
-        const val RELATIVE_MATCHING_THRESHOLD = 0.05
+        const val ABSOLUTE_MATCHING_THRESHOLD = 0.25
+        const val RELATIVE_MATCHING_THRESHOLD = 0.025
+
+        /**
+         * Gets whether a match was found given a list of classifier rank results.
+         *
+         * @param ranking List<RankResult<*>>
+         * @param maxScore Double
+         * @return Boolean
+         */
+        fun foundMatch(ranking: List<RankResult<*>>, maxScore: Double): Boolean {
+            if(ranking.isEmpty()) return false
+
+            val score = getScore(ranking[0].score, maxScore)
+            if(score < ABSOLUTE_MATCHING_THRESHOLD) return false
+
+            return if(ranking.size == 1) {
+                true
+            } else {
+                val nextScore = getScore(ranking[1].score , maxScore)
+                nextScore < score * (1 - RELATIVE_MATCHING_THRESHOLD)
+            }
+        }
+
+        /**
+         * Calculates the score in a scale
+         *
+         * @param a Double
+         * @param b Double
+         * @return Double
+         */
+        fun getScore(a: Double, b: Double): Double {
+            val ret = a / b
+            return ret * ret
+        }
 
         @JvmStatic
         fun main(args: Array<String>) = object : CliktCommand(
@@ -467,7 +506,8 @@ class Mapper(val env: ClassEnvironment) {
                  */
                 val progress = ProgressBarBuilder()
                     .setTaskName("Analyzing")
-                    .setStyle(ProgressBarStyle.UNICODE_BLOCK)
+                    .setStyle(ProgressBarStyle.ASCII)
+                    .showSpeed()
                     .setUpdateIntervalMillis(100)
                     .build()
 

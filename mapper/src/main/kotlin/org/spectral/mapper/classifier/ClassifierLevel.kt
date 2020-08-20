@@ -1,12 +1,17 @@
 package org.spectral.mapper.classifier
 
-enum class ClassifierLevel {
+enum class ClassifierLevel(val id: Int) {
 
-    INITIAL,
+    INITIAL(0),
 
-    SECONDARY,
+    SECONDARY(1),
 
-    TERTIARY,
+    TERTIARY(2),
 
-    EXTRA;
+    EXTRA(3);
+
+    companion object {
+
+        val ALL = values()
+    }
 }

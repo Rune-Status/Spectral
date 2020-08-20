@@ -354,7 +354,7 @@ object ClassifierUtil {
             val weightedScore = cScore * weight
 
             mismatch += weight - weightedScore
-            //if(mismatch > maxMismatch) return null
+            if(mismatch >= maxMismatch) return null
 
             score += weightedScore
             results.add(ClassifierResult(classifier, score))
