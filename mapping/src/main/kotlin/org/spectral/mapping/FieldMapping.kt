@@ -3,25 +3,20 @@ package org.spectral.mapping
 import java.lang.StringBuilder
 
 /**
- * The field name mapping between obfuscated and readable.
+ * A Field Mapping
  *
- * @property name The readable name of the field
- * @property desc The readable descriptor of the field
- * @property owner The readable parent name of this field.
- * @property obfName The obfuscated name of the field
- * @property obfDesc The obfuscated descriptor of the field
- * @property obfOwner The obfuscated parent name this field belongs in
+ * @property ownerName String
+ * @property name String
+ * @property desc String
+ * @property obfName String
+ * @property obfDesc String
  * @constructor
  */
-class FieldMapping(val name: String, val desc: String, val owner: String, val obfName: String, val obfDesc: String, val obfOwner: String) {
+class FieldMapping(val ownerName: String, val name: String, val desc: String, val obfName: String, val obfDesc: String) {
 
     override fun toString(): String {
         val ret = StringBuilder()
-
-        ret.append("\tFIELD $name:$desc $obfName:$obfDesc $owner $obfOwner")
-
-        ret.append("\n")
-
+        ret.append("\tFIELD $name $obfName $desc $obfDesc\n")
         return ret.toString()
     }
 }

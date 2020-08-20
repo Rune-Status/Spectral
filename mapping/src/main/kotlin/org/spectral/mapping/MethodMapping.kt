@@ -1,25 +1,22 @@
 package org.spectral.mapping
 
+import java.lang.StringBuilder
+
 /**
- * Represents a method name mappings between obfuscated and readable.
+ * A Method mapping
  *
- * @property name The readable name of the method
- * @property desc The readable descriptor of the method
- * @property owner The readable parent name of this method.
- * @property obfName The obfuscated name of the method
- * @property obfDesc The obfuscated descriptor of the method
- * @property obfOwner The parent name this method belongs to
+ * @property ownerName String
+ * @property name String
+ * @property desc String
+ * @property obfName String
+ * @property obfDesc String
  * @constructor
  */
-class MethodMapping(val name: String, val desc: String, val owner: String, val obfName: String, val obfDesc: String, val obfOwner: String) {
+class MethodMapping(val ownerName: String, val name: String, val desc: String, val obfName: String, val obfDesc: String) {
 
     override fun toString(): String {
         val ret = StringBuilder()
-
-        ret.append("\tMETHOD $name:$desc $obfName:$obfDesc $owner $obfOwner")
-
-        ret.append("\n")
-
+        ret.append("\tMETHOD $name $obfName $desc $obfDesc\n")
         return ret.toString()
     }
 }
