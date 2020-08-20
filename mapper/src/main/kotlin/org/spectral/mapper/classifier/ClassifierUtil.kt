@@ -409,7 +409,27 @@ object ClassifierUtil {
         return compareLists(
             insnsA, insnsB,
             InsnList::get, InsnList::size,
-            { ia, ib -> compareInsns(ia, ib, insnsA, insnsB, { insns: InsnList, insn: AbstractInsnNode -> insns.indexOf(insn) }, a, b) }
+            { ia, ib -> compareInsns(ia, ib, insnsA, insnsB, { insns: InsnList, insn: AbstractInsnNode -> insns.indexOf(insn) }, a.group, b.group) }
+        )
+    }
+
+    /**
+     * Compares two given instruction objects.
+     *
+     * Returns a score based on their similarity on how they interact with
+     * the JVM stack.
+     *
+     * @param listA List<AbstractInsnNode>
+     * @param listB List<AbstractInsnNode>
+     * @param groupA ClassGroup
+     * @param groupB ClassGroup
+     * @return Double
+     */
+    fun compareInsns(listA: List<AbstractInsnNode>, listB: List<AbstractInsnNode>, groupA: ClassGroup, groupB: ClassGroup): Double {
+        return compareLists(
+            listA, listB,
+            List<AbstractInsnNode>::get, List<AbstractInsnNode>::size,
+            { ia, ib -> compareInsns(ia, ib, listA, listB, { insns: List<AbstractInsnNode>, insn: AbstractInsnNode -> insns.indexOf(insn) }, groupA, groupB) }
         )
     }
 
@@ -499,8 +519,8 @@ object ClassifierUtil {
         listA: T,
         listB: T,
         position: (T, AbstractInsnNode) -> Int,
-        methodA: Method,
-        methodB: Method
+        groupA: ClassGroup,
+        groupB: ClassGroup
     ): Boolean {
         if(insnA.opcode != insnB.opcode) return false
 
@@ -533,8 +553,8 @@ object ClassifierUtil {
                 val a = insnA as TypeInsnNode
                 val b = insnB as TypeInsnNode
 
-                val clsA = methodA.group[a.desc]
-                val clsB = methodB.group[b.desc]
+                val clsA = groupA[a.desc]
+                val clsB = groupB[b.desc]
 
                 return isPotentiallyEqual(clsA, clsB)
             }
@@ -543,8 +563,8 @@ object ClassifierUtil {
                 val a = insnA as FieldInsnNode
                 val b = insnB as FieldInsnNode
 
-                val clsA = methodA.group[a.owner]
-                val clsB = methodB.group[b.owner]
+                val clsA = groupA[a.owner]
+                val clsB = groupB[b.owner]
 
                 val fieldA = clsA.resolveField(a.name, a.desc)
                 val fieldB = clsB.resolveField(b.name, b.desc)
@@ -560,8 +580,8 @@ object ClassifierUtil {
                 val b = insnB as MethodInsnNode
 
                 return compareMethods(
-                    a.owner, a.name, a.desc, a.isCallToInterface, methodA.group,
-                    b.owner, b.name, b.desc, b.isCallToInterface, methodB.group
+                    a.owner, a.name, a.desc, a.isCallToInterface, groupA,
+                    b.owner, b.name, b.desc, b.isCallToInterface, groupB
                 )
             }
 
@@ -583,8 +603,8 @@ object ClassifierUtil {
                          */
                         H_INVOKEVIRTUAL, H_INVOKESTATIC, H_INVOKESPECIAL, H_NEWINVOKESPECIAL, H_INVOKEINTERFACE -> {
                             return compareMethods(
-                                implA.owner, implA.name, implA.desc, implA.isInterface, methodA.group,
-                                implB.owner, implB.name, implB.desc, implB.isInterface, methodB.group
+                                implA.owner, implA.name, implA.desc, implA.isInterface, groupA,
+                                implB.owner, implB.name, implB.desc, implB.isInterface, groupB
                             )
                         }
                     }
@@ -622,8 +642,8 @@ object ClassifierUtil {
 
                     when(typeA.sort) {
                         Type.ARRAY, Type.OBJECT -> {
-                            val clsA = methodA.group[typeA.className]
-                            val clsB = methodB.group[typeB.className]
+                            val clsA = groupA[typeA.className]
+                            val clsB = groupB[typeB.className]
 
                             return isPotentiallyEqual(clsA, clsB)
                         }
@@ -665,8 +685,8 @@ object ClassifierUtil {
 
                 if(a.dims != b.dims) return false
 
-                val clsA = methodA.group[a.desc]
-                val clsB = methodB.group[b.desc]
+                val clsA = groupA[a.desc]
+                val clsB = groupB[b.desc]
 
                 return isPotentiallyEqual(clsA, clsB)
             }

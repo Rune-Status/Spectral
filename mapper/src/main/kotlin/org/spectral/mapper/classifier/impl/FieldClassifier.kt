@@ -1,6 +1,7 @@
 package org.spectral.mapper.classifier.impl
 
 import org.objectweb.asm.Opcodes.*
+import org.spectral.asm.FeatureExtractor
 import org.spectral.asm.Field
 import org.spectral.mapper.RankResult
 import org.spectral.mapper.classifier.AbstractClassifier
@@ -24,7 +25,9 @@ object FieldClassifier : AbstractClassifier<Field>() {
         addClassifier(readReferences, 6)
         addClassifier(writeReferences, 6)
         addClassifier(initValue, 7)
-        addClassifier(overrides, 10)
+        addClassifier(overrides, 5)
+        addClassifier(initStrings, 8)
+        addClassifier(initExecution, 10, ClassifierLevel.SECONDARY, ClassifierLevel.TERTIARY, ClassifierLevel.EXTRA)
     }
 
     /**
@@ -98,6 +101,39 @@ object FieldClassifier : AbstractClassifier<Field>() {
         if(valueA == null || valueB == null) return@classifier 0.0
 
         return@classifier if(valueA == valueB) 1.0 else 0.0
+    }
+
+    /**
+     * Initializer String Constants
+     */
+    private val initStrings = classifier("init strings") { a, b ->
+        val initA = a.initializer
+        val initB = b.initializer
+
+        if(initA == null && initB == null) return@classifier 1.0
+        if(initA == null || initB == null) return@classifier 0.0
+
+        val stringsA = hashSetOf<String>()
+        val stringsB = hashSetOf<String>()
+
+        FeatureExtractor.extractStrings(initA.iterator(), stringsA)
+        FeatureExtractor.extractStrings(initB.iterator(), stringsB)
+
+        return@classifier ClassifierUtil.compareSets(stringsA, stringsB)
+
+    }
+
+    /**
+     * Initializer Stack Execution
+     */
+    private val initExecution = classifier("init execution") { a, b ->
+        val initA = a.initializer
+        val initB = b.initializer
+
+        if(initA == null && initB == null) return@classifier 1.0
+        if(initA == null || initB == null) return@classifier 0.0
+
+        return@classifier ClassifierUtil.compareInsns(initA, initB, a.group, b.group)
     }
 
     private infix fun Int.pow(value: Int): Int {
