@@ -507,8 +507,8 @@ class Mapper(val env: ClassEnvironment) {
                 val progress = ProgressBarBuilder()
                     .setTaskName("Analyzing")
                     .setStyle(ProgressBarStyle.ASCII)
-                    .showSpeed()
-                    .setUpdateIntervalMillis(100)
+                    .setUpdateIntervalMillis(200)
+                    .setConsumer(DelegatingProgressBarConsumer(Logger::info))
                     .build()
 
                 /*
